@@ -8,9 +8,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
 var (
@@ -111,10 +109,7 @@ func (c *CLI) Run(args []string) error {
 			return stat.Kind == "modify"
 		})...)
 	}
-
-	if len(ss) > 0 {
-		stats = ss
-	}
+	stats = ss
 
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {
@@ -133,90 +128,18 @@ func (c *CLI) Run(args []string) error {
 	return nil
 }
 
-func (c CLI) remoteCommit(name string) (*object.Commit, error) {
-	refs, err := c.Repo.References()
+func computeDiff(from, to *object.Commit) (object.Changes, error) {
+	src, err := to.Tree()
 	if err != nil {
 		return nil, err
 	}
 
-	var cmt *object.Commit
-	err = refs.ForEach(func(ref *plumbing.Reference) error {
-		if ref.Name().String() == fmt.Sprintf("refs/remotes/%s", name) {
-			commit, err := c.Repo.CommitObject(ref.Hash())
-			if err != nil {
-				return err
-			}
-			cmt = commit
-		}
-		return nil
-	})
+	dst, err := from.Tree()
 	if err != nil {
 		return nil, err
 	}
 
-	return cmt, nil
-}
-
-func (c CLI) masterCommit(name string) (*object.Commit, error) {
-	branches, err := c.Repo.Branches()
-	if err != nil {
-		return nil, err
-	}
-
-	var cmt *object.Commit
-	err = branches.ForEach(func(branch *plumbing.Reference) error {
-		if branch.Name().String() == fmt.Sprintf("refs/heads/%s", name) {
-			commit, err := c.Repo.CommitObject(branch.Hash())
-			if err != nil {
-				return err
-			}
-			cmt = commit
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return cmt, nil
-}
-
-// Stat represents the stats for a file in a commit.
-type Stat struct {
-	Kind string
-	Path string
-}
-
-type Stats []Stat
-
-func (ss *Stats) Filter(f func(Stat) bool) Stats {
-	stats := make([]Stat, 0)
-	for _, stat := range *ss {
-		if f(stat) {
-			stats = append(stats, stat)
-		}
-	}
-	return stats
-}
-
-func (ss *Stats) Map(f func(Stat) Stat) Stats {
-	stats := make([]Stat, len(*ss))
-	for i, stat := range *ss {
-		stats[i] = f(stat)
-	}
-	return stats
-}
-
-func (ss *Stats) Unique() Stats {
-	m := make(map[Stat]bool)
-	stats := make([]Stat, 0)
-	for _, stat := range *ss {
-		if !m[stat] {
-			m[stat] = true
-			stats = append(stats, stat)
-		}
-	}
-	return stats
+	return object.DiffTree(dst, src)
 }
 
 func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
@@ -237,46 +160,4 @@ func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
 	}
 
 	return result, nil
-}
-
-func (c CLI) fileStatsFromChange(change *object.Change) (Stat, error) {
-	action, err := change.Action()
-	if err != nil {
-		return Stat{}, err
-	}
-
-	var kind string
-	var path string
-	switch action {
-	case merkletrie.Delete:
-		kind = "delete"
-		path = change.From.Name
-	case merkletrie.Insert:
-		kind = "insert"
-		path = change.To.Name
-	case merkletrie.Modify:
-		kind = "modify"
-		path = change.To.Name
-	default:
-		kind = "unknown"
-	}
-
-	return Stat{
-		Kind: kind,
-		Path: path,
-	}, nil
-}
-
-func computeDiff(from, to *object.Commit) (object.Changes, error) {
-	src, err := to.Tree()
-	if err != nil {
-		return nil, err
-	}
-
-	dst, err := from.Tree()
-	if err != nil {
-		return nil, err
-	}
-
-	return object.DiffTree(dst, src)
 }
