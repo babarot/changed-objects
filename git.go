@@ -9,6 +9,16 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
+func (c CLI) currentCommit() (*object.Commit, error) {
+	ref, err := c.Repo.Head()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("[DEBUG] %s: get commit", ref.Name().String())
+	return c.Repo.CommitObject(ref.Hash())
+}
+
 func (c CLI) remoteCommit(name string) (*object.Commit, error) {
 	refs, err := c.Repo.References()
 	if err != nil {

@@ -70,10 +70,22 @@ func (c *CLI) Run(args []string) error {
 		return nil
 	}
 
-	path := "."
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	abs, err := filepath.Abs(wd)
+	if err != nil {
+		return err
+	}
+
+	path := abs
 	if len(args) > 0 {
 		path = args[0]
 	}
+
+	log.Printf("[INFO] git repo: %s", path)
 
 	r, err := git.PlainOpen(path)
 	if err != nil {
@@ -81,13 +93,7 @@ func (c *CLI) Run(args []string) error {
 	}
 	c.Repo = r
 
-	ref, err := r.Head()
-	if err != nil {
-		return err
-	}
-
-	log.Printf("[DEBUG] %s: get commit", ref.Name().String())
-	commit, err := r.CommitObject(ref.Hash())
+	current, err := c.currentCommit()
 	if err != nil {
 		return err
 	}
@@ -97,8 +103,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	log.Printf("[DEBUG] diff between %s and %s", commit.Hash.String(), master.Hash.String())
-	stats, err := c.getStats(master, commit)
+	stats, err := c.getStats(master, current)
 	if err != nil {
 		return err
 	}
@@ -142,7 +147,7 @@ func (c *CLI) Run(args []string) error {
 
 	switch c.Option.Output {
 	case "json":
-		result := Result{Stats: stats}
+		result := Result{Repo: path, Stats: stats}
 		result.Print(c.Stdout)
 	case "":
 		for _, stat := range stats {
