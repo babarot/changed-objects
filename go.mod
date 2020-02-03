@@ -1,4 +1,4 @@
-module github.com/b4b4r07/get-changed-objects
+module github.com/b4b4r07/changed-objects
 
 go 1.13
 

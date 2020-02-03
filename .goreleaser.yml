@@ -1,4 +1,4 @@
-project_name: get-changed-objects
+project_name: changed-objects
 env:
   - GO111MODULE=on
 before:
@@ -6,7 +6,7 @@ before:
     - go mod tidy
 builds:
   - main: .
-    binary: get-changed-objects
+    binary: changed-objects
     ldflags: 
       - -s -w
       - -X main.Version={{.Version}}
