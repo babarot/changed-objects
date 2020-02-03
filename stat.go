@@ -40,7 +40,7 @@ type Stat struct {
 type Stats []Stat
 
 type Result struct {
-	Stats Stats `json:"stats"`
+	Stats Stats `json:"stats,omitempty"`
 }
 
 func (r Result) Print(w io.Writer) error {
