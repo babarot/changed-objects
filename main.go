@@ -132,10 +132,12 @@ func (c *CLI) Run(args []string) error {
 	case "json":
 		result := Result{Stats: stats}
 		result.Print(c.Stdout)
-	default:
+	case "":
 		for _, stat := range stats {
 			fmt.Fprintln(c.Stdout, stat.Path)
 		}
+	default:
+		return fmt.Errorf("%s: invalid output format", c.Option.Output)
 	}
 
 	return nil
