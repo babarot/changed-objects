@@ -95,22 +95,26 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	// var ss Stats
-	// if c.Option.Added {
-	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 		return stat.Kind == "insert"
-	// 	})...)
-	// }
-	// if c.Option.Deleted {
-	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 		return stat.Kind == "delete"
-	// 	})...)
-	// }
-	// if c.Option.Modified {
-	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 		return stat.Kind == "modify"
-	// 	})...)
-	// }
+	var ss Stats
+	if c.Option.Added {
+		ss = append(ss, stats.Filter(func(stat Stat) bool {
+			return stat.Kind == "insert"
+		})...)
+	}
+	if c.Option.Deleted {
+		ss = append(ss, stats.Filter(func(stat Stat) bool {
+			return stat.Kind == "delete"
+		})...)
+	}
+	if c.Option.Modified {
+		ss = append(ss, stats.Filter(func(stat Stat) bool {
+			return stat.Kind == "modify"
+		})...)
+	}
+
+	if len(ss) > 0 {
+		stats = ss
+	}
 
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {
