@@ -1,12 +1,51 @@
 package main
 
+import (
+	"encoding/json"
+	"io"
+)
+
+type Kind int
+
+const (
+	Addition Kind = iota
+	Deletion
+	Modification
+	Unknown
+)
+
+func (k Kind) String() string {
+	switch k {
+	case Addition:
+		return "insert"
+	case Deletion:
+		return "delete"
+	case Modification:
+		return "modify"
+	default:
+		return "unknown"
+	}
+}
+
+func (k Kind) MarshalJSON() ([]byte, error) {
+	return json.Marshal(k.String())
+}
+
 // Stat represents the stats for a file in a commit.
 type Stat struct {
-	Kind string
-	Path string
+	Kind Kind   `json:"kind"`
+	Path string `json:"path"`
 }
 
 type Stats []Stat
+
+type Result struct {
+	Stats Stats `json:"stats"`
+}
+
+func (r Result) Print(w io.Writer) error {
+	return json.NewEncoder(w).Encode(&r)
+}
 
 func (ss *Stats) Filter(f func(Stat) bool) Stats {
 	stats := make([]Stat, 0)

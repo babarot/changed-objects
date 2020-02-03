@@ -27,7 +27,10 @@ type Option struct {
 	Added    bool `long:"added" description:"Return only added objects (defaults: added/deleted/modified)"`
 	Deleted  bool `long:"deleted" description:"Return only deleted objects (defaults: added/deleted/modified)"`
 	Modified bool `long:"modified" description:"Return only modified objects (defaults: added/deleted/modified)"`
-	Dirname  bool `long:"dirname" description:"Return changed objects with their directory name"`
+
+	Dirname bool `long:"dirname" description:"Return changed objects with their directory name"`
+
+	Output string `long:"output" short:"o" description:"Format to output the result" default:""`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -128,8 +131,14 @@ func (c *CLI) Run(args []string) error {
 		stats = stats.Unique()
 	}
 
-	for _, stat := range stats {
-		fmt.Println(stat.Path)
+	switch c.Option.Output {
+	case "json":
+		result := Result{Stats: stats}
+		result.Print(os.Stdout)
+	default:
+		for _, stat := range stats {
+			fmt.Println(stat.Path)
+		}
 	}
 
 	return nil
