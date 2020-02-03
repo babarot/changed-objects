@@ -32,6 +32,10 @@ type Option struct {
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
 
+func (o Option) NoKindFlag() bool {
+	return !o.Added && !o.Deleted && !o.Modified
+}
+
 func main() {
 	os.Exit(run(os.Args[1:]))
 }
@@ -96,20 +100,23 @@ func (c *CLI) Run(args []string) error {
 	var ss Stats
 	if c.Option.Added {
 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "insert"
+			return stat.Kind == Addition
 		})...)
 	}
 	if c.Option.Deleted {
 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "delete"
+			return stat.Kind == Deletion
 		})...)
 	}
 	if c.Option.Modified {
 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "modify"
+			return stat.Kind == Modification
 		})...)
 	}
-	stats = ss
+
+	if !c.Option.NoKindFlag() {
+		stats = ss
+	}
 
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {

@@ -62,20 +62,20 @@ func (c CLI) fileStatsFromChange(change *object.Change) (Stat, error) {
 		return Stat{}, err
 	}
 
-	var kind string
+	var kind Kind
 	var path string
 	switch action {
 	case merkletrie.Delete:
-		kind = "delete"
+		kind = Deletion
 		path = change.From.Name
 	case merkletrie.Insert:
-		kind = "insert"
+		kind = Addition
 		path = change.To.Name
 	case merkletrie.Modify:
-		kind = "modify"
+		kind = Modification
 		path = change.To.Name
 	default:
-		kind = "unknown"
+		kind = Unknown
 	}
 
 	return Stat{
