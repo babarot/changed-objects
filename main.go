@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -84,7 +83,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	master, err := c.originMasterCommit()
+	master, err := c.remoteCommit("origin/master")
 	if err != nil {
 		return err
 	}
@@ -118,18 +117,16 @@ func (c *CLI) Run(args []string) error {
 	return nil
 }
 
-func (c CLI) originMasterCommit() (*object.Commit, error) {
-	r := c.Repo
-
-	refs, err := r.References()
+func (c CLI) remoteCommit(name string) (*object.Commit, error) {
+	refs, err := c.Repo.References()
 	if err != nil {
 		return nil, err
 	}
 
 	var cmt *object.Commit
 	err = refs.ForEach(func(ref *plumbing.Reference) error {
-		if ref.Name() == "refs/remotes/origin/master" {
-			commit, err := r.CommitObject(ref.Hash())
+		if ref.Name().String() == fmt.Sprintf("refs/remotes/%s", name) {
+			commit, err := c.Repo.CommitObject(ref.Hash())
 			if err != nil {
 				return err
 			}
@@ -144,20 +141,20 @@ func (c CLI) originMasterCommit() (*object.Commit, error) {
 	return cmt, nil
 }
 
-func masterCommit(r *git.Repository) (*object.Commit, error) {
-	branchRefs, err := r.Branches()
+func (c CLI) masterCommit(name string) (*object.Commit, error) {
+	branches, err := c.Repo.Branches()
 	if err != nil {
 		return nil, err
 	}
 
-	var c *object.Commit
-	err = branchRefs.ForEach(func(branchRef *plumbing.Reference) error {
-		if branchRef.Name() == "refs/heads/master" {
-			commit, err := r.CommitObject(branchRef.Hash())
+	var cmt *object.Commit
+	err = branches.ForEach(func(branch *plumbing.Reference) error {
+		if branch.Name().String() == fmt.Sprintf("refs/heads/%s", name) {
+			commit, err := c.Repo.CommitObject(branch.Hash())
 			if err != nil {
 				return err
 			}
-			c = commit
+			cmt = commit
 		}
 		return nil
 	})
@@ -165,7 +162,7 @@ func masterCommit(r *git.Repository) (*object.Commit, error) {
 		return nil, err
 	}
 
-	return c, nil
+	return cmt, nil
 }
 
 // Stat represents the stats for a file in a commit.
@@ -189,38 +186,7 @@ func (ss *Stats) Filter(f func(Stat) bool) Stats {
 
 func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
 	var err error
-	if to.NumParents() != 0 && from == nil {
-		from, err = to.Parent(0)
-		if err != nil {
-			return nil, err
-		}
-	}
 
-	if from == nil {
-		return fileStatsFromCommit(to)
-	}
-
-	return c.fileStatsFromDiff(from, to)
-}
-
-func fileStatsFromCommit(c *object.Commit) ([]Stat, error) {
-	var result []Stat
-	files, err := c.Files()
-	if err != nil {
-		return nil, err
-	}
-
-	err = files.ForEach(func(f *object.File) error {
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func (c CLI) fileStatsFromDiff(from, to *object.Commit) ([]Stat, error) {
 	changes, err := computeDiff(from, to)
 	if err != nil {
 		return nil, err
@@ -230,12 +196,8 @@ func (c CLI) fileStatsFromDiff(from, to *object.Commit) ([]Stat, error) {
 	for _, change := range changes {
 		s, err := c.fileStatsFromChange(change)
 		if err != nil {
-			if err == errIgnored {
-				continue
-			}
-			return nil, err
+			continue
 		}
-
 		result = append(result, s)
 	}
 
@@ -269,8 +231,6 @@ func (c CLI) fileStatsFromChange(change *object.Change) (Stat, error) {
 		Path: path,
 	}, nil
 }
-
-var errIgnored = errors.New("ignored file")
 
 func computeDiff(from, to *object.Commit) (object.Changes, error) {
 	src, err := to.Tree()
