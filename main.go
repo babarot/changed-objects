@@ -24,19 +24,11 @@ type CLI struct {
 }
 
 type Option struct {
-	Added    bool `long:"added" description:"Return only added objects (defaults: added/deleted/modified)"`
-	Deleted  bool `long:"deleted" description:"Return only deleted objects (defaults: added/deleted/modified)"`
-	Modified bool `long:"modified" description:"Return only modified objects (defaults: added/deleted/modified)"`
-
-	Dirname bool `long:"dirname" description:"Return changed objects with their directory name"`
-
-	Output string `long:"output" short:"o" description:"Format to output the result" default:""`
+	Filters []string `long:"filter" description:"Filter the kind of changed objects (added/deleted/modified)" default:"all"`
+	Dirname bool     `long:"dirname" description:"Return changed objects with their directory name"`
+	Output  string   `long:"output" short:"o" description:"Format to output the result" default:""`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
-}
-
-func (o Option) NoKindFlag() bool {
-	return !o.Added && !o.Deleted && !o.Modified
 }
 
 func main() {
@@ -101,25 +93,30 @@ func (c *CLI) Run(args []string) error {
 	}
 
 	var ss Stats
-	if c.Option.Added {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == Addition
-		})...)
+	for _, filter := range c.Option.Filters {
+		switch filter {
+		case "all":
+			ss = stats
+			break
+		case "added":
+			ss = append(ss, stats.Filter(func(stat Stat) bool {
+				return stat.Kind == Addition
+			})...)
+		case "deleted":
+			ss = append(ss, stats.Filter(func(stat Stat) bool {
+				return stat.Kind == Deletion
+			})...)
+		case "modified":
+			ss = append(ss, stats.Filter(func(stat Stat) bool {
+				return stat.Kind == Modification
+			})...)
+		case "":
+			return fmt.Errorf("requires a filter at least one")
+		default:
+			return fmt.Errorf("%s: invalid filter (added,deleted,modified can be allowed)", filter)
+		}
 	}
-	if c.Option.Deleted {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == Deletion
-		})...)
-	}
-	if c.Option.Modified {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == Modification
-		})...)
-	}
-
-	if !c.Option.NoKindFlag() {
-		stats = ss
-	}
+	stats = ss
 
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {
