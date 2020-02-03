@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/src-d/go-git.v4"
@@ -25,9 +26,10 @@ type CLI struct {
 }
 
 type Option struct {
-	Added    bool `long:"added" description:"Return added objects"`
-	Deleted  bool `long:"deleted" description:"Return deleted objects"`
-	Modified bool `long:"modified" description:"Return modified objects"`
+	Added    bool `long:"added" description:"Return only added objects (defaults: added/deleted/modified)"`
+	Deleted  bool `long:"deleted" description:"Return only deleted objects (defaults: added/deleted/modified)"`
+	Modified bool `long:"modified" description:"Return only modified objects (defaults: added/deleted/modified)"`
+	Dirname  bool `long:"dirname" description:"Return changed objects with their directory name"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -93,21 +95,31 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	var ss Stats
-	if c.Option.Added {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "insert"
-		})...)
-	}
-	if c.Option.Deleted {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "delete"
-		})...)
-	}
-	if c.Option.Modified {
-		ss = append(ss, stats.Filter(func(stat Stat) bool {
-			return stat.Kind == "modify"
-		})...)
+	// var ss Stats
+	// if c.Option.Added {
+	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
+	// 		return stat.Kind == "insert"
+	// 	})...)
+	// }
+	// if c.Option.Deleted {
+	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
+	// 		return stat.Kind == "delete"
+	// 	})...)
+	// }
+	// if c.Option.Modified {
+	// 	ss = append(ss, stats.Filter(func(stat Stat) bool {
+	// 		return stat.Kind == "modify"
+	// 	})...)
+	// }
+
+	if c.Option.Dirname {
+		stats = stats.Map(func(stat Stat) Stat {
+			return Stat{
+				Kind: stat.Kind,
+				Path: filepath.Dir(stat.Path),
+			}
+		})
+		stats = stats.Unique()
 	}
 
 	for _, stat := range stats {
@@ -180,7 +192,26 @@ func (ss *Stats) Filter(f func(Stat) bool) Stats {
 			stats = append(stats, stat)
 		}
 	}
-	// *ss = stats
+	return stats
+}
+
+func (ss *Stats) Map(f func(Stat) Stat) Stats {
+	stats := make([]Stat, len(*ss))
+	for i, stat := range *ss {
+		stats[i] = f(stat)
+	}
+	return stats
+}
+
+func (ss *Stats) Unique() Stats {
+	m := make(map[Stat]bool)
+	stats := make([]Stat, 0)
+	for _, stat := range *ss {
+		if !m[stat] {
+			m[stat] = true
+			stats = append(stats, stat)
+		}
+	}
 	return stats
 }
 
