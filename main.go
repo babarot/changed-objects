@@ -65,7 +65,7 @@ func run(args []string) int {
 func (c *CLI) Run(args []string) error {
 	switch {
 	case c.Option.Version:
-		fmt.Fprintf(os.Stdout, "%s (%s)\n", Version, Revision)
+		fmt.Fprintf(c.Stdout, "%s (%s)\n", Version, Revision)
 		return nil
 	}
 
@@ -134,46 +134,40 @@ func (c *CLI) Run(args []string) error {
 	switch c.Option.Output {
 	case "json":
 		result := Result{Stats: stats}
-		result.Print(os.Stdout)
+		result.Print(c.Stdout)
 	default:
 		for _, stat := range stats {
-			fmt.Println(stat.Path)
+			fmt.Fprintln(c.Stdout, stat.Path)
 		}
 	}
 
 	return nil
 }
 
-func computeDiff(from, to *object.Commit) (object.Changes, error) {
+func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
 	src, err := to.Tree()
 	if err != nil {
-		return nil, err
+		return Stats{}, err
 	}
 
 	dst, err := from.Tree()
 	if err != nil {
-		return nil, err
+		return Stats{}, err
 	}
 
-	return object.DiffTree(dst, src)
-}
-
-func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
-	var err error
-
-	changes, err := computeDiff(from, to)
+	changes, err := object.DiffTree(dst, src)
 	if err != nil {
-		return nil, err
+		return Stats{}, err
 	}
 
-	var result []Stat
+	var stats []Stat
 	for _, change := range changes {
-		s, err := c.fileStatsFromChange(change)
+		stat, err := c.fileStatsFromChange(change)
 		if err != nil {
 			continue
 		}
-		result = append(result, s)
+		stats = append(stats, stat)
 	}
 
-	return result, nil
+	return stats, nil
 }
