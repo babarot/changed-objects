@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
+	clilog "github.com/b4b4r07/go-cli-log"
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -36,6 +38,13 @@ func main() {
 }
 
 func run(args []string) int {
+	clilog.Env = "CLI_LOG"
+	clilog.SetOutput()
+	defer log.Printf("[INFO] finish main function")
+
+	log.Printf("[INFO] Version: %s (%s)", Version, Revision)
+	log.Printf("[INFO] Args: %#v", args)
+
 	var opt Option
 	args, err := flags.ParseArgs(&opt, args)
 	if err != nil {
@@ -77,6 +86,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
+	log.Printf("[DEBUG] %s: get commit", ref.Name().String())
 	commit, err := r.CommitObject(ref.Hash())
 	if err != nil {
 		return err
@@ -87,11 +97,13 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
+	log.Printf("[DEBUG] diff between %s and %s", commit.Hash.String(), master.Hash.String())
 	stats, err := c.getStats(master, commit)
 	if err != nil {
 		return err
 	}
 
+	log.Printf("[DEBUG] filters: %#v", c.Option.Filters)
 	var ss Stats
 	for _, filter := range c.Option.Filters {
 		switch filter {
@@ -159,12 +171,15 @@ func (c CLI) getStats(from, to *object.Commit) (Stats, error) {
 		return Stats{}, err
 	}
 
+	log.Printf("[DEBUG] a number of changes: %d", len(changes))
+
 	var stats []Stat
 	for _, change := range changes {
 		stat, err := c.fileStatsFromChange(change)
 		if err != nil {
 			continue
 		}
+		log.Printf("[DEBUG] stat: %#v", stat)
 		stats = append(stats, stat)
 	}
 

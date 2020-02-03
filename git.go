@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -21,6 +22,7 @@ func (c CLI) remoteCommit(name string) (*object.Commit, error) {
 			if err != nil {
 				return err
 			}
+			log.Printf("[DEBUG] %s: get commit", ref.Name().String())
 			cmt = commit
 		}
 		return nil
@@ -45,6 +47,7 @@ func (c CLI) masterCommit(name string) (*object.Commit, error) {
 			if err != nil {
 				return err
 			}
+			log.Printf("[DEBUG] %s: get commit", branch.Name().String())
 			cmt = commit
 		}
 		return nil
