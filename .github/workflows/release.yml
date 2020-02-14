@@ -9,8 +9,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
       - name: Setup Go
         uses: actions/setup-go@v1
         with:
@@ -21,4 +19,4 @@ jobs:
           version: latest
           args: release --rm-dist
         env:
-          GITHUB_TOKEN: ${{ secrets.github_token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
