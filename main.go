@@ -38,7 +38,7 @@ func main() {
 }
 
 func run(args []string) int {
-	clilog.Env = "CLI_LOG"
+	clilog.Env = "LOG"
 	clilog.SetOutput()
 	defer log.Printf("[INFO] finish main function")
 
