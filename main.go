@@ -29,6 +29,7 @@ type Option struct {
 	Filters []string `long:"filter" description:"Filter the kind of changed objects (added/deleted/modified)" default:"all"`
 	Dirname bool     `long:"dirname" description:"Return changed objects with their directory name"`
 	Output  string   `long:"output" short:"o" description:"Format to output the result" default:""`
+	Remote  string   `long:"remote" description:"Remote branch spec" default:"origin/main"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -98,7 +99,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	master, err := c.remoteCommit("origin/master")
+	master, err := c.remoteCommit(c.Option.Remote)
 	if err != nil {
 		return err
 	}
