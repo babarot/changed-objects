@@ -90,21 +90,39 @@ func (c *CLI) Run(args []string) error {
 
 	r, err := git.PlainOpen(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open repository: %w", err)
 	}
 	c.Repo = r
+
+	h, err := r.Head()
+	if err != nil {
+		return err
+	}
+	head := h.Name().String()
+	log.Printf("[TRACE] getting HEAD: %s", head)
+
+	var commit *object.Commit
+	switch head {
+	case "refs/heads/master", "refs/heads/main":
+		prev, err := c.previousCommit()
+		if err != nil {
+			return err
+		}
+		commit = prev
+	default:
+		remote, err := c.remoteCommit(c.Option.Remote)
+		if err != nil {
+			return err
+		}
+		commit = remote
+	}
 
 	current, err := c.currentCommit()
 	if err != nil {
 		return err
 	}
 
-	master, err := c.remoteCommit(c.Option.Remote)
-	if err != nil {
-		return err
-	}
-
-	stats, err := c.getStats(master, current)
+	stats, err := c.getStats(commit, current)
 	if err != nil {
 		return err
 	}

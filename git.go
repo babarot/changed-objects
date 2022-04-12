@@ -19,6 +19,15 @@ func (c CLI) currentCommit() (*object.Commit, error) {
 	return c.Repo.CommitObject(ref.Hash())
 }
 
+func (c CLI) previousCommit() (*object.Commit, error) {
+	hash, err := c.Repo.ResolveRevision("HEAD^")
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Repo.CommitObject(*hash)
+}
+
 func (c CLI) remoteCommit(name string) (*object.Commit, error) {
 	refs, err := c.Repo.References()
 	if err != nil {
