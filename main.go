@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	clilog "github.com/b4b4r07/go-cli-log"
 	"github.com/jessevdk/go-flags"
@@ -26,10 +27,10 @@ type CLI struct {
 }
 
 type Option struct {
-	Filters []string `long:"filter" description:"Filter the kind of changed objects (added/deleted/modified)" default:"all"`
-	Dirname bool     `long:"dirname" description:"Return changed objects with their directory name"`
-	Output  string   `long:"output" short:"o" description:"Format to output the result" default:""`
-	Remote  string   `long:"remote" description:"Remote branch spec" default:"origin/main"`
+	Filters       []string `long:"filter" description:"Filter the kind of changed objects (added/deleted/modified)" default:"all"`
+	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
+	Output        string   `long:"output" short:"o" description:"Format to output the result" default:""`
+	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -94,23 +95,24 @@ func (c *CLI) Run(args []string) error {
 	}
 	c.Repo = r
 
-	h, err := r.Head()
+	head, err := r.Head()
 	if err != nil {
 		return err
 	}
-	head := h.Name().String()
-	log.Printf("[TRACE] getting HEAD: %s", head)
+
+	branch := strings.Replace(head.Name().String(), "refs/heads/", "", -1)
+	log.Printf("[TRACE] getting HEAD: %s", branch)
 
 	var commit *object.Commit
-	switch head {
-	case "refs/heads/master", "refs/heads/main":
+	switch branch {
+	case c.Option.DefaultBranch:
 		prev, err := c.previousCommit()
 		if err != nil {
 			return err
 		}
 		commit = prev
 	default:
-		remote, err := c.remoteCommit(c.Option.Remote)
+		remote, err := c.remoteCommit("origin/" + c.Option.DefaultBranch)
 		if err != nil {
 			return err
 		}
