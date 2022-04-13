@@ -101,12 +101,14 @@ func (c *CLI) Run(args []string) error {
 	var commit *object.Commit
 	switch branch {
 	case c.Option.DefaultBranch:
+		log.Printf("[DEBUG] Getting previous HEAD commit")
 		prev, err := c.previousCommit()
 		if err != nil {
 			return err
 		}
 		commit = prev
 	default:
+		log.Printf("[DEBUG] Getting remote commit")
 		remote, err := c.remoteCommit("origin/" + c.Option.DefaultBranch)
 		if err != nil {
 			return err
@@ -114,6 +116,7 @@ func (c *CLI) Run(args []string) error {
 		commit = remote
 	}
 
+	log.Printf("[DEBUG] Getting current commit")
 	current, err := c.currentCommit()
 	if err != nil {
 		return err
@@ -124,7 +127,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	log.Printf("[DEBUG] filters: %#v", c.Option.Filters)
+	log.Printf("[INFO] Option filters: %#v", c.Option.Filters)
 	var ss Stats
 	for _, filter := range c.Option.Filters {
 		switch filter {
@@ -153,10 +156,11 @@ func (c *CLI) Run(args []string) error {
 
 	if len(args) > 0 {
 		var ss Stats
+		log.Printf("[TRACE] Filtering with args")
 		for _, arg := range args {
 			ss = append(ss, stats.Filter(func(stat Stat) bool {
-				log.Printf("[TRACE] filtering with %q %q", stat.Path, arg)
-				return strings.Index(stat.Path, arg) >= 0
+				log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
+				return strings.Index(stat.Path, arg) == 0
 			})...)
 		}
 		stats = ss
