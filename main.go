@@ -81,15 +81,10 @@ func (c *CLI) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	repo := abs
+	log.Printf("[INFO] git repo: %s", repo)
 
-	path := abs
-	if len(args) > 0 {
-		path = args[0]
-	}
-
-	log.Printf("[INFO] git repo: %s", path)
-
-	r, err := git.PlainOpen(path)
+	r, err := git.PlainOpen(repo)
 	if err != nil {
 		return fmt.Errorf("cannot open repository: %w", err)
 	}
@@ -156,6 +151,17 @@ func (c *CLI) Run(args []string) error {
 	}
 	stats = ss
 
+	if len(args) > 0 {
+		var ss Stats
+		for _, arg := range args {
+			ss = append(ss, stats.Filter(func(stat Stat) bool {
+				log.Printf("[TRACE] filtering with %q %q", stat.Path, arg)
+				return strings.Index(stat.Path, arg) >= 0
+			})...)
+		}
+		stats = ss
+	}
+
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {
 			return Stat{
@@ -168,7 +174,7 @@ func (c *CLI) Run(args []string) error {
 
 	switch c.Option.Output {
 	case "json":
-		result := Result{Repo: path, Stats: stats}
+		result := Result{Repo: repo, Stats: stats}
 		result.Print(c.Stdout)
 	case "":
 		for _, stat := range stats {

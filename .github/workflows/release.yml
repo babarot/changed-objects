@@ -41,6 +41,11 @@ jobs:
         with:
           labels: ${{ steps.get-merged-pull-request.outputs.labels }}
 
+      - name: Workaround for Git vulnerability
+        run: |
+          # https://github.blog/2022-04-12-git-security-vulnerability-announced/
+          git config --global --add safe.directory /github/workspace
+
       - name: Get latest Git tag
         uses: actions-ecosystem/action-get-latest-tag@v1
         id: get-latest-tag
