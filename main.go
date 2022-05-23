@@ -98,7 +98,7 @@ func (c *CLI) Run(args []string) error {
 	branch := strings.Replace(head.Name().String(), "refs/heads/", "", -1)
 	log.Printf("[TRACE] getting HEAD: %s", branch)
 
-	var commit *object.Commit
+	var base *object.Commit
 	switch branch {
 	case c.Option.DefaultBranch:
 		log.Printf("[DEBUG] Getting previous HEAD commit")
@@ -106,14 +106,14 @@ func (c *CLI) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-		commit = prev
+		base = prev
 	default:
 		log.Printf("[DEBUG] Getting remote commit")
 		remote, err := c.remoteCommit("origin/" + c.Option.DefaultBranch)
 		if err != nil {
 			return err
 		}
-		commit = remote
+		base = remote
 	}
 
 	log.Printf("[DEBUG] Getting current commit")
@@ -122,7 +122,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	stats, err := c.getStats(commit, current)
+	stats, err := c.getStats(base, current)
 	if err != nil {
 		return err
 	}
