@@ -91,13 +91,11 @@ func (c *CLI) Run(args []string) error {
 	}
 	c.Repo = r
 
-	head, err := r.Head()
+	branch, err := c.GetCurrentBranchFromRepository()
 	if err != nil {
 		return err
 	}
-
-	branch := strings.Replace(head.Name().String(), "refs/heads/", "", -1)
-	log.Printf("[TRACE] getting HEAD: %s", branch)
+	log.Printf("[TRACE] Getting current branch: %s", branch)
 
 	var base *object.Commit
 

@@ -143,3 +143,31 @@ func (c CLI) mergeBase(baseRev, commitRev string) (*object.Commit, error) {
 
 	return res[0], nil
 }
+
+// https://github.com/src-d/go-git/issues/1030
+func (c CLI) GetCurrentBranchFromRepository() (string, error) {
+	branchRefs, err := c.Repo.Branches()
+	if err != nil {
+		return "", err
+	}
+
+	headRef, err := c.Repo.Head()
+	if err != nil {
+		return "", err
+	}
+
+	var currentBranchName string
+	err = branchRefs.ForEach(func(branchRef *plumbing.Reference) error {
+		if branchRef.Hash() == headRef.Hash() {
+			currentBranchName = branchRef.Name().Short()
+			return nil
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return currentBranchName, nil
+}
