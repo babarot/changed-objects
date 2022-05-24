@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -104,4 +105,41 @@ func (c CLI) fileStatsFromChange(change *object.Change) (Stat, error) {
 		Kind: kind,
 		Path: path,
 	}, nil
+}
+
+// https://github.com/go-git/go-git/blob/master/_examples/merge_base/main.go
+func (c CLI) mergeBase(baseRev, commitRev string) (*object.Commit, error) {
+	log.Printf("[DEBUG] baseRev: %s, commitRev: %s", baseRev, commitRev)
+	repo := c.Repo
+
+	// Get the hashes of the passed revisions
+	var hashes []*plumbing.Hash
+	for _, rev := range []string{baseRev, commitRev} {
+		hash, err := repo.ResolveRevision(plumbing.Revision(rev))
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, hash)
+	}
+
+	// Get the commits identified by the passed hashes
+	var commits []*object.Commit
+	for _, hash := range hashes {
+		commit, err := repo.CommitObject(*hash)
+		if err != nil {
+			return nil, err
+		}
+		commits = append(commits, commit)
+	}
+
+	res, err := commits[0].MergeBase(commits[1])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res) == 0 {
+		return nil, errors.New("failed to get merge-base")
+	}
+
+	return res[0], nil
 }

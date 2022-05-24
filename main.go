@@ -31,6 +31,7 @@ type Option struct {
 	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
 	Output        string   `long:"output" short:"o" description:"Format to output the result" default:""`
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
+	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision (commitRev is current branch)"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -99,6 +100,7 @@ func (c *CLI) Run(args []string) error {
 	log.Printf("[TRACE] getting HEAD: %s", branch)
 
 	var base *object.Commit
+
 	switch branch {
 	case c.Option.DefaultBranch:
 		log.Printf("[DEBUG] Getting previous HEAD commit")
@@ -114,6 +116,19 @@ func (c *CLI) Run(args []string) error {
 			return err
 		}
 		base = remote
+	}
+
+	if c.Option.MergeBase != "" {
+		log.Printf("[DEBUG] Comparing with merge-base")
+		h, err := c.Repo.Head()
+		if err != nil {
+			return err
+		}
+		currentBranch := h.Name().Short()
+		base, err = c.mergeBase(c.Option.MergeBase, currentBranch)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Printf("[DEBUG] Getting current commit")
