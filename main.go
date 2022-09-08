@@ -31,6 +31,7 @@ type Option struct {
 	Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
 	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
 	DirExist      bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
+	DirNotExist   bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
@@ -189,6 +190,12 @@ func (c *CLI) Run(args []string) error {
 	if c.Option.DirExist {
 		stats = stats.Filter(func(stat Stat) bool {
 			return stat.DirExist
+		})
+	}
+
+	if c.Option.DirNotExist {
+		stats = stats.Filter(func(stat Stat) bool {
+			return !stat.DirExist
 		})
 	}
 
