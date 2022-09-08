@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -104,6 +106,12 @@ func (c CLI) fileStatsFromChange(change *object.Change) (Stat, error) {
 	return Stat{
 		Kind: kind,
 		Path: path,
+		File: path,
+		Dir:  filepath.Dir(path),
+		DirExist: func() bool {
+			_, err := os.Stat(filepath.Dir(path))
+			return err == nil
+		}(),
 	}, nil
 }
 

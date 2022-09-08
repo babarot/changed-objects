@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -27,11 +28,12 @@ type CLI struct {
 }
 
 type Option struct {
-	Filters       []string `long:"filter" description:"Filter the kind of changed objects (added/deleted/modified)" default:"all"`
+	Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
 	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
-	Output        string   `long:"output" short:"o" description:"Format to output the result" default:""`
+	DirExist      bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
+	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
-	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision (commitRev is current branch)"`
+	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -161,8 +163,6 @@ func (c *CLI) Run(args []string) error {
 			})...)
 		case "":
 			return fmt.Errorf("requires a filter at least one")
-		default:
-			return fmt.Errorf("%s: invalid filter (added,deleted,modified can be allowed)", filter)
 		}
 	}
 	stats = ss
@@ -181,18 +181,29 @@ func (c *CLI) Run(args []string) error {
 
 	if c.Option.Dirname {
 		stats = stats.Map(func(stat Stat) Stat {
-			return Stat{
-				Kind: stat.Kind,
-				Path: filepath.Dir(stat.Path),
-			}
+			stat.Path = stat.Dir
+			return stat
 		})
-		stats = stats.Unique()
 	}
+
+	if c.Option.DirExist {
+		stats = stats.Filter(func(stat Stat) bool {
+			return stat.DirExist
+		})
+	}
+
+	stats = stats.Unique()
 
 	switch c.Option.Output {
 	case "json":
-		result := Result{Repo: repo, Stats: stats}
-		result.Print(c.Stdout)
+		r := struct {
+			Repo  string `json:"repo"`
+			Stats Stats  `json:"stats"`
+		}{
+			Repo:  repo,
+			Stats: stats,
+		}
+		return json.NewEncoder(c.Stdout).Encode(&r)
 	case "":
 		for _, stat := range stats {
 			fmt.Fprintln(c.Stdout, stat.Path)
