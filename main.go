@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	clilog "github.com/b4b4r07/go-cli-log"
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/jessevdk/go-flags"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -35,6 +36,8 @@ type Option struct {
 	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
+
+	Ignores []string `long:"ignore" description:"Ignore string pattern"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -196,6 +199,17 @@ func (c *CLI) Run(args []string) error {
 	if c.Option.DirNotExist {
 		stats = stats.Filter(func(stat Stat) bool {
 			return !stat.DirExist
+		})
+	}
+
+	for _, ignore := range c.Option.Ignores {
+		stats = stats.Filter(func(stat Stat) bool {
+			match, err := doublestar.Match(ignore, stat.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return false
+			}
+			return !match
 		})
 	}
 
