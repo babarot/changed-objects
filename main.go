@@ -68,7 +68,6 @@ func run(args []string) error {
 	}
 
 	stats, err := ditto.Get(repo, ditto.Option{
-		Dirname:       opt.Dirname,
 		DirExist:      opt.DirExist,
 		DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
@@ -100,6 +99,13 @@ func run(args []string) error {
 	}
 	stats = ss
 
+	if opt.Dirname {
+		stats = stats.Map(func(stat ditto.Stat) ditto.Stat {
+			stat.Path = stat.Dir
+			return stat
+		})
+	}
+
 	switch opt.Output {
 	case "json":
 		r := struct {
@@ -111,8 +117,15 @@ func run(args []string) error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(&r)
 	case "":
+		// Remove redundants
+		paths := make(map[string]bool)
 		for _, stat := range stats {
-			fmt.Fprintln(os.Stdout, stat.Path)
+			if !paths[stat.Path] {
+				paths[stat.Path] = true
+			}
+		}
+		for path := range paths {
+			fmt.Fprintln(os.Stdout, path)
 		}
 	default:
 		return fmt.Errorf("%s: invalid output format", opt.Output)

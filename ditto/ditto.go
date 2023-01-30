@@ -16,7 +16,6 @@ import (
 )
 
 type Option struct {
-	Dirname       bool
 	DirExist      bool
 	DirNotExist   bool
 	DefaultBranch string
@@ -92,13 +91,6 @@ func Get(filepath string, opt Option, args []string) (Stats, error) {
 		stats = ss
 	}
 
-	// if opt.Dirname {
-	// 	stats = stats.Map(func(stat Stat) Stat {
-	// 		stat.Path = stat.Dir
-	// 		return stat
-	// 	})
-	// }
-
 	if opt.DirExist {
 		stats = stats.Filter(func(stat Stat) bool {
 			return stat.DirExist
@@ -111,7 +103,6 @@ func Get(filepath string, opt Option, args []string) (Stats, error) {
 		})
 	}
 
-	stats = stats.Unique()
 	return stats, nil
 }
 
@@ -364,18 +355,6 @@ func (ss *Stats) Map(f func(Stat) Stat) Stats {
 	stats := make([]Stat, len(*ss))
 	for i, stat := range *ss {
 		stats[i] = f(stat)
-	}
-	return stats
-}
-
-func (ss *Stats) Unique() Stats {
-	m := make(map[string]bool)
-	stats := make([]Stat, 0)
-	for _, stat := range *ss {
-		if !m[stat.Path] {
-			m[stat.Path] = true
-			stats = append(stats, stat)
-		}
 	}
 	return stats
 }
