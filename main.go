@@ -20,7 +20,7 @@ var (
 
 type Option struct {
 	Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
-	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
+	OnlyDir       bool     `long:"only-dir" description:"Return changed objects with their directory name"`
 	DirExist      bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
 	DirNotExist   bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
@@ -75,6 +75,7 @@ func run(args []string) error {
 		DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
+		OnlyDir:       opt.OnlyDir,
 	}, args)
 
 	log.Printf("[INFO] Option filters: %#v", opt.Filters)
@@ -101,13 +102,6 @@ func run(args []string) error {
 		}
 	}
 	stats = ss
-
-	if opt.Dirname {
-		stats = stats.Map(func(stat ditto.Stat) ditto.Stat {
-			stat.Path = stat.Dir
-			return stat
-		})
-	}
 
 	for _, ignore := range opt.Ignores {
 		stats = stats.Filter(func(stat ditto.Stat) bool {
