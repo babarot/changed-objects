@@ -9,6 +9,7 @@ import (
 
 	"github.com/b4b4r07/changed-objects/ditto"
 	clilog "github.com/b4b4r07/go-cli-log"
+	"github.com/bmatcuk/doublestar"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -25,6 +26,8 @@ type Option struct {
 	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
+
+	Ignores []string `long:"ignore" description:"Ignore string pattern"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -103,6 +106,17 @@ func run(args []string) error {
 		stats = stats.Map(func(stat ditto.Stat) ditto.Stat {
 			stat.Path = stat.Dir
 			return stat
+		})
+	}
+
+	for _, ignore := range opt.Ignores {
+		stats = stats.Filter(func(stat ditto.Stat) bool {
+			match, err := doublestar.Match(ignore, stat.Path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return false
+			}
+			return !match
 		})
 	}
 
