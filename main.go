@@ -18,13 +18,13 @@ var (
 )
 
 type Option struct {
-	// Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
-	Dirname       bool   `long:"dirname" description:"Return changed objects with their directory name"`
-	DirExist      bool   `long:"dir-exist" description:"Return changed objects if parent dir exists"`
-	DirNotExist   bool   `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
-	Output        string `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
-	DefaultBranch string `long:"default-branch" description:"Specify default branch" default:"main"`
-	MergeBase     string `long:"merge-base" description:"Specify merge-base revision"`
+	Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
+	Dirname       bool     `long:"dirname" description:"Return changed objects with their directory name"`
+	DirExist      bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
+	DirNotExist   bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
+	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
+	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
+	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
 }
@@ -74,6 +74,31 @@ func run(args []string) error {
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 	}, args)
+
+	log.Printf("[INFO] Option filters: %#v", opt.Filters)
+	var ss ditto.Stats
+	for _, filter := range opt.Filters {
+		switch filter {
+		case "all":
+			ss = stats
+			break
+		case "added":
+			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+				return stat.Kind == ditto.Addition
+			})...)
+		case "deleted":
+			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+				return stat.Kind == ditto.Deletion
+			})...)
+		case "modified":
+			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+				return stat.Kind == ditto.Modification
+			})...)
+		case "":
+			return fmt.Errorf("requires a filter at least one")
+		}
+	}
+	stats = ss
 
 	switch opt.Output {
 	case "json":

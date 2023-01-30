@@ -80,31 +80,6 @@ func Get(filepath string, opt Option, args []string) (Stats, error) {
 		return stats, err
 	}
 
-	// log.Printf("[INFO] Option filters: %#v", opt.Filters)
-	// var ss Stats
-	// for _, filter := range opt.Filters {
-	// 	switch filter {
-	// 	case "all":
-	// 		ss = stats
-	// 		break
-	// 	case "added":
-	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 			return stat.Kind == Addition
-	// 		})...)
-	// 	case "deleted":
-	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 			return stat.Kind == Deletion
-	// 		})...)
-	// 	case "modified":
-	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 			return stat.Kind == Modification
-	// 		})...)
-	// 	case "":
-	// 		return fmt.Errorf("requires a filter at least one")
-	// 	}
-	// }
-	// stats = ss
-
 	if len(args) > 0 {
 		var ss Stats
 		log.Printf("[TRACE] Filtering with args")
