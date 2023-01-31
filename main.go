@@ -18,19 +18,18 @@ var (
 )
 
 type Option struct {
-	Filters       []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
-	OnlyDir       bool     `long:"only-dir" description:"Return changed objects with their directory name"`
-	DirExist      bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
-	DirNotExist   bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
-	Output        string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
-	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
-	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
-
-	DirChunk string `long:"dir-chunk"`
-
-	Ignores []string `long:"ignore" description:"Ignore string pattern"`
-
 	Version bool `short:"v" long:"version" description:"Show version"`
+
+	DefaultBranch string `long:"default-branch" description:"Specify default branch" default:"main"`
+	MergeBase     string `long:"merge-base" description:"Specify merge-base revision"`
+	DirChunk      string `long:"dir-chunk"`
+
+	Filters     []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
+	OnlyDir     bool     `long:"only-dir" description:"Return changed objects with their directory name"`
+	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
+	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
+	Output      string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
+	Ignores     []string `long:"ignore" description:"Ignore string pattern"`
 }
 
 func main() {
@@ -71,14 +70,6 @@ func run(args []string) error {
 	}
 	log.Printf("[INFO] git repo: %s", repo)
 
-	// stats, err := ditto.Get(repo, args, ditto.Option{
-	// 	DirExist:      opt.DirExist,
-	// 	DirNotExist:   opt.DirNotExist,
-	// 	DefaultBranch: opt.DefaultBranch,
-	// 	MergeBase:     opt.MergeBase,
-	// 	OnlyDir:       opt.OnlyDir,
-	// })
-	//
 	// log.Printf("[INFO] Option filters: %#v", opt.Filters)
 	// var ss ditto.Stats
 	// for _, filter := range opt.Filters {

@@ -1,7 +1,6 @@
 package ditto
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +16,8 @@ type File struct {
 	ParentDir ParentDir `json:"parent_dir"`
 }
 
+type Files []File
+
 type ParentDir struct {
 	Path  string `json:"path"`
 	Exist bool   `json:"exist"`
@@ -24,17 +25,19 @@ type ParentDir struct {
 
 type Dir struct {
 	Path  string `json:"path"`
-	Files []File `json:"files"`
+	Files Files  `json:"files"`
 }
 
-// Stat represents the stats for a file in a commit.
-type Stat struct {
-	Kind     git.Kind `json:"kind"`
-	Path     string   `json:"path"`
-	DirExist bool     `json:"dir-exist"`
-}
+type Dirs []Dir
 
-type Stats []Stat
+// // Stat represents the stats for a file in a commit.
+// type Stat struct {
+// 	Kind     git.Kind `json:"kind"`
+// 	Path     string   `json:"path"`
+// 	DirExist bool     `json:"dir-exist"`
+// }
+//
+// type Stats []Stat
 
 type Option struct {
 	DirExist      bool
@@ -47,8 +50,28 @@ type Option struct {
 	OnlyDir bool
 }
 
-func GetFiles(path string, args []string, opt Option) ([]File, error) {
-	var files []File
+func (fs *Files) Filter(f func(File) bool) Files {
+	files := make(Files, 0)
+	for _, file := range *fs {
+		if f(file) {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
+func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
+	dirs := make(Dirs, 0)
+	for _, dir := range *ds {
+		if f(dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
+}
+
+func GetFiles(path string, args []string, opt Option) (Files, error) {
+	var files Files
 
 	changes, err := git.Open(git.Config{
 		Path:          path,
@@ -56,24 +79,22 @@ func GetFiles(path string, args []string, opt Option) ([]File, error) {
 		MergeBase:     opt.MergeBase,
 	})
 	if err != nil {
-		return []File{}, err
+		return Files{}, err
 	}
 
 	for _, change := range changes {
 		files = append(files, getFile(change))
 	}
 
-	// if len(args) > 0 {
-	// 	var ss Stats
-	// 	log.Printf("[TRACE] Filtering with args")
-	// 	for _, arg := range args {
-	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 			log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
-	// 			return strings.Index(stat.Path, arg) == 0
-	// 		})...)
-	// 	}
-	// 	stats = ss
-	// }
+	if len(args) > 0 {
+		var tmp Files
+		for _, arg := range args {
+			tmp = append(tmp, files.Filter(func(file File) bool {
+				return strings.Index(file.Path, arg) == 0
+			})...)
+		}
+		files = tmp
+	}
 
 	// if opt.DirExist {
 	// 	stats = stats.Filter(func(stat Stat) bool {
@@ -111,8 +132,6 @@ func getFile(change git.Change) File {
 }
 
 func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
-	var dirs []Dir
-
 	changes, err := git.Open(git.Config{
 		Path:          path,
 		DefaultBranch: opt.DefaultBranch,
@@ -141,27 +160,26 @@ func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
 		} else {
 			d = Dir{
 				Path:  dir,
-				Files: []File{getFile(change)},
+				Files: Files{getFile(change)},
 			}
 		}
 		data[dir] = d
 	}
 
+	var dirs Dirs
 	for _, d := range data {
 		dirs = append(dirs, d)
 	}
 
-	// if len(args) > 0 {
-	// 	var ss Stats
-	// 	log.Printf("[TRACE] Filtering with args")
-	// 	for _, arg := range args {
-	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
-	// 			log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
-	// 			return strings.Index(stat.Path, arg) == 0
-	// 		})...)
-	// 	}
-	// 	stats = ss
-	// }
+	if len(args) > 0 {
+		var tmp Dirs
+		for _, arg := range args {
+			tmp = append(tmp, dirs.Filter(func(dir Dir) bool {
+				return strings.Index(dir.Path, arg) == 0
+			})...)
+		}
+		dirs = tmp
+	}
 
 	// if opt.DirExist {
 	// 	stats = stats.Filter(func(stat Stat) bool {
@@ -181,102 +199,4 @@ func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
 	// }
 
 	return dirs, nil
-}
-
-func Get(fp string, args []string, opt Option) (Stats, error) {
-	var stats Stats
-
-	files, err := git.Open(git.Config{
-		Path:          fp,
-		DefaultBranch: opt.DefaultBranch,
-		MergeBase:     opt.MergeBase,
-	})
-	if err != nil {
-		return stats, err
-	}
-
-	for _, file := range files {
-		stats = append(stats, Stat{
-			Kind: file.Kind,
-			Path: file.Path,
-			DirExist: func() bool {
-				_, err := os.Stat(filepath.Dir(file.Path))
-				return err == nil
-			}(),
-		})
-	}
-
-	if len(args) > 0 {
-		var ss Stats
-		log.Printf("[TRACE] Filtering with args")
-		for _, arg := range args {
-			ss = append(ss, stats.Filter(func(stat Stat) bool {
-				log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
-				return strings.Index(stat.Path, arg) == 0
-			})...)
-		}
-		stats = ss
-	}
-
-	if opt.DirExist {
-		stats = stats.Filter(func(stat Stat) bool {
-			return stat.DirExist
-		})
-	}
-
-	if opt.DirNotExist {
-		stats = stats.Filter(func(stat Stat) bool {
-			return !stat.DirExist
-		})
-	}
-
-	// OnlyDir
-	if opt.OnlyDir {
-		stats = stats.Dirs()
-	}
-
-	return stats, nil
-}
-
-func (ss *Stats) Filter(f func(Stat) bool) Stats {
-	stats := make([]Stat, 0)
-	for _, stat := range *ss {
-		if f(stat) {
-			stats = append(stats, stat)
-		}
-	}
-	return stats
-}
-
-func (ss *Stats) Map(f func(Stat) Stat) Stats {
-	stats := make([]Stat, len(*ss))
-	for i, stat := range *ss {
-		stats[i] = f(stat)
-	}
-	return stats
-}
-
-func (ss *Stats) Dirs() Stats {
-	m := make(map[string]bool)
-	stats := make([]Stat, 0)
-	for _, stat := range *ss {
-		dir := filepath.Dir(stat.Path)
-		exists := func() bool {
-			_, err := os.Stat(dir)
-			return err == nil
-		}()
-		kind := git.Deletion
-		if exists {
-			kind = git.Modification
-		}
-		if !m[dir] {
-			m[dir] = true
-			stats = append(stats, Stat{
-				Kind:     kind,
-				Path:     dir,
-				DirExist: exists,
-			})
-		}
-	}
-	return stats
 }
