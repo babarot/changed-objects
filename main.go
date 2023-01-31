@@ -22,7 +22,6 @@ type Option struct {
 
 	DefaultBranch string `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string `long:"merge-base" description:"Specify merge-base revision"`
-	DirChunk      string `long:"dir-chunk"`
 
 	Filters     []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
 	OnlyDir     bool     `long:"only-dir" description:"Return changed objects with their directory name"`
@@ -137,7 +136,6 @@ func run(args []string) error {
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		OnlyDir:       opt.OnlyDir,
-		DirChunk:      opt.DirChunk,
 	})
 	if err != nil {
 		return err

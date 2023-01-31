@@ -37,68 +37,64 @@ type Option struct {
 	DefaultBranch string
 	MergeBase     string
 
-	DirChunk string
-
 	OnlyDir bool
 }
 
-func (fs *Files) Filter(f func(File) bool) Files {
-	files := make(Files, 0)
-	for _, file := range *fs {
-		if f(file) {
-			files = append(files, file)
-		}
-	}
-	return files
-}
-
-type ditto struct {
+type client struct {
 	args    []string
 	opt     Option
 	changes []git.Change
 }
 
-func New(path string, args []string, opt Option) (ditto, error) {
+func New(path string, args []string, opt Option) (client, error) {
 	changes, err := git.Open(git.Config{
 		Path:          path,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 	})
 	if err != nil {
-		return ditto{}, err
+		return client{}, err
 	}
-	return ditto{
+	return client{
 		args:    args,
 		opt:     opt,
 		changes: changes,
 	}, nil
 }
 
-func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
-	dirs := make(Dirs, 0)
-	for _, dir := range *ds {
-		if f(dir) {
-			dirs = append(dirs, dir)
-		}
-	}
-	return dirs
-}
+// func (fs *Files) Filter(f func(File) bool) Files {
+// 	files := make(Files, 0)
+// 	for _, file := range *fs {
+// 		if f(file) {
+// 			files = append(files, file)
+// 		}
+// 	}
+// 	return files
+// }
+//
+// func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
+// 	dirs := make(Dirs, 0)
+// 	for _, dir := range *ds {
+// 		if f(dir) {
+// 			dirs = append(dirs, dir)
+// 		}
+// 	}
+// 	return dirs
+// }
 
-func (d ditto) GetFiles() (Files, error) {
+func (c client) GetFiles() (Files, error) {
 	var files Files
 
-	for _, change := range d.changes {
-		files = append(files, getFile(change))
-	}
-
-	if len(d.args) > 0 {
-		var tmp Files
-		for _, arg := range d.args {
-			tmp = append(tmp, files.Filter(func(file File) bool {
-				return strings.Index(file.Path, arg) == 0
-			})...)
+	for _, change := range c.changes {
+		if len(c.args) > 0 {
+			arg := c.args[0]
+			matched, _ := doublestar.Match(filepath.Join(arg, "**"), change.Path)
+			if !matched {
+				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, arg)
+				continue
+			}
 		}
-		files = tmp
+		files = append(files, getFile(change))
 	}
 
 	// if opt.DirExist {
@@ -136,47 +132,37 @@ func getFile(change git.Change) File {
 	}
 }
 
-func (d ditto) GetDirs() ([]Dir, error) {
-	data := make(map[string]Dir)
-	chunk := d.opt.DirChunk
-	length := len(strings.Split(chunk, "/"))
+func (c client) GetDirs() ([]Dir, error) {
+	matrix := make(map[string]Dir)
 
-	for _, change := range d.changes {
-		dir := change.Dir
-		if len(chunk) > 0 {
-			matched, _ := doublestar.Match(filepath.Join(chunk, "**"), change.Path)
+	for _, change := range c.changes {
+		path := change.Dir
+		if len(c.args) > 0 {
+			arg := c.args[0]
+			length := len(strings.Split(arg, "/"))
+			matched, _ := doublestar.Match(filepath.Join(arg, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, chunk)
+				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, arg)
 				continue
 			}
-			dir = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
-			log.Printf("[DEBUG] GetDirs: chunk dir %s\n", dir)
+			path = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
+			log.Printf("[DEBUG] GetDirs: chunk path %s\n", path)
 		}
-		d, ok := data[dir]
+		dir, ok := matrix[path]
 		if ok {
-			d.Files = append(d.Files, getFile(change))
+			dir.Files = append(dir.Files, getFile(change))
 		} else {
-			d = Dir{
-				Path:  dir,
+			dir = Dir{
+				Path:  path,
 				Files: Files{getFile(change)},
 			}
 		}
-		data[dir] = d
+		matrix[path] = dir
 	}
 
 	var dirs Dirs
-	for _, d := range data {
-		dirs = append(dirs, d)
-	}
-
-	if len(d.args) > 0 {
-		var tmp Dirs
-		for _, arg := range d.args {
-			tmp = append(tmp, dirs.Filter(func(dir Dir) bool {
-				return strings.Index(dir.Path, arg) == 0
-			})...)
-		}
-		dirs = tmp
+	for _, dir := range matrix {
+		dirs = append(dirs, dir)
 	}
 
 	// if opt.DirExist {
