@@ -131,21 +131,24 @@ func run(args []string) error {
 	// 	return fmt.Errorf("%s: invalid output format", opt.Output)
 	// }
 
-	dopt := ditto.Option{
+	d, err := ditto.New(repo, args, ditto.Option{
 		DirExist:      opt.DirExist,
 		DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		OnlyDir:       opt.OnlyDir,
 		DirChunk:      opt.DirChunk,
-	}
-
-	files, err := ditto.GetFiles(repo, args, dopt)
+	})
 	if err != nil {
 		return err
 	}
 
-	dirs, err := ditto.GetDirs(repo, args, dopt)
+	files, err := d.GetFiles()
+	if err != nil {
+		return err
+	}
+
+	dirs, err := d.GetDirs()
 	if err != nil {
 		return err
 	}

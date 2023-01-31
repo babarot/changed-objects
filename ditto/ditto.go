@@ -1,12 +1,13 @@
 package ditto
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/b4b4r07/changed-objects/git"
-	"github.com/bmatcuk/doublestar"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 type File struct {
@@ -30,15 +31,6 @@ type Dir struct {
 
 type Dirs []Dir
 
-// // Stat represents the stats for a file in a commit.
-// type Stat struct {
-// 	Kind     git.Kind `json:"kind"`
-// 	Path     string   `json:"path"`
-// 	DirExist bool     `json:"dir-exist"`
-// }
-//
-// type Stats []Stat
-
 type Option struct {
 	DirExist      bool
 	DirNotExist   bool
@@ -60,6 +52,28 @@ func (fs *Files) Filter(f func(File) bool) Files {
 	return files
 }
 
+type ditto struct {
+	args    []string
+	opt     Option
+	changes []git.Change
+}
+
+func New(path string, args []string, opt Option) (ditto, error) {
+	changes, err := git.Open(git.Config{
+		Path:          path,
+		DefaultBranch: opt.DefaultBranch,
+		MergeBase:     opt.MergeBase,
+	})
+	if err != nil {
+		return ditto{}, err
+	}
+	return ditto{
+		args:    args,
+		opt:     opt,
+		changes: changes,
+	}, nil
+}
+
 func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
 	dirs := make(Dirs, 0)
 	for _, dir := range *ds {
@@ -70,25 +84,16 @@ func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
 	return dirs
 }
 
-func GetFiles(path string, args []string, opt Option) (Files, error) {
+func (d ditto) GetFiles() (Files, error) {
 	var files Files
 
-	changes, err := git.Open(git.Config{
-		Path:          path,
-		DefaultBranch: opt.DefaultBranch,
-		MergeBase:     opt.MergeBase,
-	})
-	if err != nil {
-		return Files{}, err
-	}
-
-	for _, change := range changes {
+	for _, change := range d.changes {
 		files = append(files, getFile(change))
 	}
 
-	if len(args) > 0 {
+	if len(d.args) > 0 {
 		var tmp Files
-		for _, arg := range args {
+		for _, arg := range d.args {
 			tmp = append(tmp, files.Filter(func(file File) bool {
 				return strings.Index(file.Path, arg) == 0
 			})...)
@@ -131,28 +136,21 @@ func getFile(change git.Change) File {
 	}
 }
 
-func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
-	changes, err := git.Open(git.Config{
-		Path:          path,
-		DefaultBranch: opt.DefaultBranch,
-		MergeBase:     opt.MergeBase,
-	})
-	if err != nil {
-		return []Dir{}, err
-	}
-
+func (d ditto) GetDirs() ([]Dir, error) {
 	data := make(map[string]Dir)
-	chunk := opt.DirChunk
+	chunk := d.opt.DirChunk
 	length := len(strings.Split(chunk, "/"))
 
-	for _, change := range changes {
+	for _, change := range d.changes {
 		dir := change.Dir
 		if len(chunk) > 0 {
 			matched, _ := doublestar.Match(filepath.Join(chunk, "**"), change.Path)
 			if !matched {
+				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, chunk)
 				continue
 			}
 			dir = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
+			log.Printf("[DEBUG] GetDirs: chunk dir %s\n", dir)
 		}
 		d, ok := data[dir]
 		if ok {
@@ -171,9 +169,9 @@ func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
 		dirs = append(dirs, d)
 	}
 
-	if len(args) > 0 {
+	if len(d.args) > 0 {
 		var tmp Dirs
-		for _, arg := range args {
+		for _, arg := range d.args {
 			tmp = append(tmp, dirs.Filter(func(dir Dir) bool {
 				return strings.Index(dir.Path, arg) == 0
 			})...)
