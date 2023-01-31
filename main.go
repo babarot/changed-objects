@@ -8,9 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/b4b4r07/changed-objects/ditto"
-	"github.com/b4b4r07/changed-objects/git"
 	clilog "github.com/b4b4r07/go-cli-log"
-	"github.com/bmatcuk/doublestar"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -71,74 +69,101 @@ func run(args []string) error {
 	}
 	log.Printf("[INFO] git repo: %s", repo)
 
-	stats, err := ditto.Get(repo, args, ditto.Option{
+	// stats, err := ditto.Get(repo, args, ditto.Option{
+	// 	DirExist:      opt.DirExist,
+	// 	DirNotExist:   opt.DirNotExist,
+	// 	DefaultBranch: opt.DefaultBranch,
+	// 	MergeBase:     opt.MergeBase,
+	// 	OnlyDir:       opt.OnlyDir,
+	// })
+	//
+	// log.Printf("[INFO] Option filters: %#v", opt.Filters)
+	// var ss ditto.Stats
+	// for _, filter := range opt.Filters {
+	// 	switch filter {
+	// 	case "all":
+	// 		ss = stats
+	// 		break
+	// 	case "added":
+	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+	// 			return stat.Kind == git.Addition
+	// 		})...)
+	// 	case "deleted":
+	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+	// 			return stat.Kind == git.Deletion
+	// 		})...)
+	// 	case "modified":
+	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
+	// 			return stat.Kind == git.Modification
+	// 		})...)
+	// 	case "":
+	// 		return fmt.Errorf("requires a filter at least one")
+	// 	}
+	// }
+	// stats = ss
+	//
+	// for _, ignore := range opt.Ignores {
+	// 	stats = stats.Filter(func(stat ditto.Stat) bool {
+	// 		match, err := doublestar.Match(ignore, stat.Path)
+	// 		if err != nil {
+	// 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+	// 			return false
+	// 		}
+	// 		return !match
+	// 	})
+	// }
+	//
+	// switch opt.Output {
+	// case "json":
+	// 	r := struct {
+	// 		Repo  string      `json:"repo"`
+	// 		Stats ditto.Stats `json:"stats"`
+	// 	}{
+	// 		Repo:  repo,
+	// 		Stats: stats,
+	// 	}
+	// 	return json.NewEncoder(os.Stdout).Encode(&r)
+	// case "":
+	// 	// Remove redundants
+	// 	paths := make(map[string]bool)
+	// 	for _, stat := range stats {
+	// 		if !paths[stat.Path] {
+	// 			paths[stat.Path] = true
+	// 		}
+	// 	}
+	// 	for path := range paths {
+	// 		fmt.Fprintln(os.Stdout, path)
+	// 	}
+	// default:
+	// 	return fmt.Errorf("%s: invalid output format", opt.Output)
+	// }
+
+	dopt := ditto.Option{
 		DirExist:      opt.DirExist,
 		DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		OnlyDir:       opt.OnlyDir,
-	})
-
-	log.Printf("[INFO] Option filters: %#v", opt.Filters)
-	var ss ditto.Stats
-	for _, filter := range opt.Filters {
-		switch filter {
-		case "all":
-			ss = stats
-			break
-		case "added":
-			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == git.Addition
-			})...)
-		case "deleted":
-			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == git.Deletion
-			})...)
-		case "modified":
-			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == git.Modification
-			})...)
-		case "":
-			return fmt.Errorf("requires a filter at least one")
-		}
-	}
-	stats = ss
-
-	for _, ignore := range opt.Ignores {
-		stats = stats.Filter(func(stat ditto.Stat) bool {
-			match, err := doublestar.Match(ignore, stat.Path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-				return false
-			}
-			return !match
-		})
 	}
 
-	switch opt.Output {
-	case "json":
-		r := struct {
-			Repo  string      `json:"repo"`
-			Stats ditto.Stats `json:"stats"`
-		}{
-			Repo:  repo,
-			Stats: stats,
-		}
-		return json.NewEncoder(os.Stdout).Encode(&r)
-	case "":
-		// Remove redundants
-		paths := make(map[string]bool)
-		for _, stat := range stats {
-			if !paths[stat.Path] {
-				paths[stat.Path] = true
-			}
-		}
-		for path := range paths {
-			fmt.Fprintln(os.Stdout, path)
-		}
-	default:
-		return fmt.Errorf("%s: invalid output format", opt.Output)
+	files, err := ditto.GetFile(repo, args, dopt)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	dirs, err := ditto.GetDirs(repo, args, dopt)
+	if err != nil {
+		return err
+	}
+
+	r := struct {
+		Repo  string       `json:"repo"`
+		Files []ditto.File `json:"files"`
+		Dirs  []ditto.Dir  `json:"dirs"`
+	}{
+		Repo:  repo,
+		Files: files,
+		Dirs:  dirs,
+	}
+	return json.NewEncoder(os.Stdout).Encode(&r)
 }

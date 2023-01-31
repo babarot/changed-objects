@@ -9,6 +9,23 @@ import (
 	"github.com/b4b4r07/changed-objects/git"
 )
 
+type File struct {
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	Kind      git.Kind  `json:"kind"`
+	ParentDir ParentDir `json:"parent_dir"`
+}
+
+type ParentDir struct {
+	Path  string `json:"path"`
+	Exist bool   `json:"exist"`
+}
+
+type Dir struct {
+	Path  string `json:"path"`
+	Files []File `json:"files"`
+}
+
 // Stat represents the stats for a file in a commit.
 type Stat struct {
 	Kind     git.Kind `json:"kind"`
@@ -24,7 +41,135 @@ type Option struct {
 	DefaultBranch string
 	MergeBase     string
 
+	DirChunk string
+
 	OnlyDir bool
+}
+
+func GetFile(path string, args []string, opt Option) ([]File, error) {
+	var files []File
+
+	changes, err := git.Open(git.Config{
+		Path:          path,
+		DefaultBranch: opt.DefaultBranch,
+		MergeBase:     opt.MergeBase,
+	})
+	if err != nil {
+		return []File{}, err
+	}
+
+	for _, change := range changes {
+		files = append(files, getFile(change))
+	}
+
+	// if len(args) > 0 {
+	// 	var ss Stats
+	// 	log.Printf("[TRACE] Filtering with args")
+	// 	for _, arg := range args {
+	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
+	// 			log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
+	// 			return strings.Index(stat.Path, arg) == 0
+	// 		})...)
+	// 	}
+	// 	stats = ss
+	// }
+
+	// if opt.DirExist {
+	// 	stats = stats.Filter(func(stat Stat) bool {
+	// 		return stat.DirExist
+	// 	})
+	// }
+	//
+	// if opt.DirNotExist {
+	// 	stats = stats.Filter(func(stat Stat) bool {
+	// 		return !stat.DirExist
+	// 	})
+	// }
+	//
+	// // OnlyDir
+	// if opt.OnlyDir {
+	// 	stats = stats.Dirs()
+	// }
+
+	return files, nil
+}
+
+func getFile(change git.Change) File {
+	return File{
+		Name: filepath.Base(change.Path),
+		Path: change.Path,
+		Kind: change.Kind,
+		ParentDir: ParentDir{
+			Path: change.Dir,
+			Exist: func() bool {
+				_, err := os.Stat(change.Dir)
+				return err == nil
+			}(),
+		},
+	}
+}
+
+func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
+	var dirs []Dir
+
+	changes, err := git.Open(git.Config{
+		Path:          path,
+		DefaultBranch: opt.DefaultBranch,
+		MergeBase:     opt.MergeBase,
+	})
+	if err != nil {
+		return []Dir{}, err
+	}
+
+	hit := make(map[string]bool)
+	data := make(map[string]*Dir)
+
+	for _, change := range changes {
+		if hit[change.Dir] {
+			data[change.Dir].Files = append(data[change.Dir].Files, getFile(change))
+		} else {
+			hit[change.Dir] = true
+			data[change.Dir] = &Dir{
+				Path:  filepath.Dir(change.Path),
+				Files: []File{getFile(change)},
+			}
+		}
+	}
+
+	for _, d := range data {
+		dirs = append(dirs, *d)
+	}
+
+	// if len(args) > 0 {
+	// 	var ss Stats
+	// 	log.Printf("[TRACE] Filtering with args")
+	// 	for _, arg := range args {
+	// 		ss = append(ss, stats.Filter(func(stat Stat) bool {
+	// 			log.Printf("[TRACE] Filtering with stat %q, file %q", stat.Path, arg)
+	// 			return strings.Index(stat.Path, arg) == 0
+	// 		})...)
+	// 	}
+	// 	stats = ss
+	// }
+
+	// if opt.DirExist {
+	// 	stats = stats.Filter(func(stat Stat) bool {
+	// 		return stat.DirExist
+	// 	})
+	// }
+	//
+	// if opt.DirNotExist {
+	// 	stats = stats.Filter(func(stat Stat) bool {
+	// 		return !stat.DirExist
+	// 	})
+	// }
+	//
+	// // OnlyDir
+	// if opt.OnlyDir {
+	// 	stats = stats.Dirs()
+	// }
+
+	return dirs, nil
 }
 
 func Get(fp string, args []string, opt Option) (Stats, error) {
@@ -42,9 +187,9 @@ func Get(fp string, args []string, opt Option) (Stats, error) {
 	for _, file := range files {
 		stats = append(stats, Stat{
 			Kind: file.Kind,
-			Path: file.Name,
+			Path: file.Path,
 			DirExist: func() bool {
-				_, err := os.Stat(filepath.Dir(file.Name))
+				_, err := os.Stat(filepath.Dir(file.Path))
 				return err == nil
 			}(),
 		})
