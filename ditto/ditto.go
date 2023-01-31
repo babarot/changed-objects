@@ -32,12 +32,10 @@ type Dir struct {
 type Dirs []Dir
 
 type Option struct {
-	DirExist      bool
-	DirNotExist   bool
 	DefaultBranch string
 	MergeBase     string
 
-	OnlyDir bool
+	Ignores []string
 }
 
 type client struct {
@@ -62,25 +60,57 @@ func New(path string, args []string, opt Option) (client, error) {
 	}, nil
 }
 
-// func (fs *Files) Filter(f func(File) bool) Files {
-// 	files := make(Files, 0)
-// 	for _, file := range *fs {
-// 		if f(file) {
-// 			files = append(files, file)
-// 		}
-// 	}
-// 	return files
-// }
-//
-// func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
-// 	dirs := make(Dirs, 0)
-// 	for _, dir := range *ds {
-// 		if f(dir) {
-// 			dirs = append(dirs, dir)
-// 		}
-// 	}
-// 	return dirs
-// }
+type Object interface {
+	GetPath() string
+}
+
+func (f File) GetPath() string {
+	return f.Path
+}
+
+func (d Dir) GetPath() string {
+	return d.Path
+}
+
+func (fs *Files) Filter(f func(File) bool) Files {
+	files := make(Files, 0)
+	for _, file := range *fs {
+		if f(file) {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
+func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
+	dirs := make(Dirs, 0)
+	for _, dir := range *ds {
+		if f(dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
+}
+
+type Result struct {
+	Files []File `json:"files"`
+	Dirs  []Dir  `json:"dirs"`
+}
+
+func (c client) Get() (Result, error) {
+	files, err := c.GetFiles()
+	if err != nil {
+		return Result{}, err
+	}
+	dirs, err := c.GetDirs()
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		Files: files,
+		Dirs:  dirs,
+	}, nil
+}
 
 func (c client) GetFiles() (Files, error) {
 	var files Files
@@ -90,29 +120,22 @@ func (c client) GetFiles() (Files, error) {
 			arg := c.args[0]
 			matched, _ := doublestar.Match(filepath.Join(arg, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, arg)
+				log.Printf("[DEBUG] GetFiles: %s is not matched in %s\n", change.Path, arg)
 				continue
 			}
 		}
 		files = append(files, getFile(change))
 	}
 
-	// if opt.DirExist {
-	// 	stats = stats.Filter(func(stat Stat) bool {
-	// 		return stat.DirExist
-	// 	})
-	// }
-	//
-	// if opt.DirNotExist {
-	// 	stats = stats.Filter(func(stat Stat) bool {
-	// 		return !stat.DirExist
-	// 	})
-	// }
-	//
-	// // OnlyDir
-	// if opt.OnlyDir {
-	// 	stats = stats.Dirs()
-	// }
+	for _, ignore := range c.opt.Ignores {
+		files = files.Filter(func(file File) bool {
+			match, err := doublestar.Match(ignore, file.Path)
+			if err != nil {
+				return false
+			}
+			return !match
+		})
+	}
 
 	return files, nil
 }
@@ -165,22 +188,15 @@ func (c client) GetDirs() ([]Dir, error) {
 		dirs = append(dirs, dir)
 	}
 
-	// if opt.DirExist {
-	// 	stats = stats.Filter(func(stat Stat) bool {
-	// 		return stat.DirExist
-	// 	})
-	// }
-	//
-	// if opt.DirNotExist {
-	// 	stats = stats.Filter(func(stat Stat) bool {
-	// 		return !stat.DirExist
-	// 	})
-	// }
-	//
-	// // OnlyDir
-	// if opt.OnlyDir {
-	// 	stats = stats.Dirs()
-	// }
+	for _, ignore := range c.opt.Ignores {
+		dirs = dirs.Filter(func(dir Dir) bool {
+			match, err := doublestar.Match(ignore, dir.Path)
+			if err != nil {
+				return false
+			}
+			return !match
+		})
+	}
 
 	return dirs, nil
 }

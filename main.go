@@ -24,11 +24,9 @@ type Option struct {
 	MergeBase     string `long:"merge-base" description:"Specify merge-base revision"`
 
 	Filters     []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
-	OnlyDir     bool     `long:"only-dir" description:"Return changed objects with their directory name"`
+	Ignores     []string `long:"ignore" description:"Ignore string pattern"`
 	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
 	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
-	Output      string   `long:"output" short:"o" description:"Format to output the result" default:"" choice:"json"`
-	Ignores     []string `long:"ignore" description:"Ignore string pattern"`
 }
 
 func main() {
@@ -94,17 +92,7 @@ func run(args []string) error {
 	// }
 	// stats = ss
 	//
-	// for _, ignore := range opt.Ignores {
-	// 	stats = stats.Filter(func(stat ditto.Stat) bool {
-	// 		match, err := doublestar.Match(ignore, stat.Path)
-	// 		if err != nil {
-	// 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-	// 			return false
-	// 		}
-	// 		return !match
-	// 	})
-	// }
-	//
+
 	// switch opt.Output {
 	// case "json":
 	// 	r := struct {
@@ -131,34 +119,66 @@ func run(args []string) error {
 	// }
 
 	d, err := ditto.New(repo, args, ditto.Option{
-		DirExist:      opt.DirExist,
-		DirNotExist:   opt.DirNotExist,
+		// DirExist:      opt.DirExist,
+		// DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
-		OnlyDir:       opt.OnlyDir,
+		Ignores:       opt.Ignores,
 	})
 	if err != nil {
 		return err
 	}
 
-	files, err := d.GetFiles()
+	// files, err := d.GetFiles()
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// dirs, err := d.GetDirs()
+	// if err != nil {
+	// 	return err
+	// }
+
+	result, err := d.Get()
 	if err != nil {
 		return err
 	}
 
-	dirs, err := d.GetDirs()
-	if err != nil {
-		return err
-	}
+	// for _, o := range objects {
+	// 	data, err := json.Marshal(o)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	fmt.Printf("%s\n", string(data))
+	// }
+	// fmt.Printf("%#v\n", objects)
 
-	r := struct {
-		Repo  string       `json:"repo"`
-		Files []ditto.File `json:"files"`
-		Dirs  []ditto.Dir  `json:"dirs"`
-	}{
-		Repo:  repo,
-		Files: files,
-		Dirs:  dirs,
-	}
-	return json.NewEncoder(os.Stdout).Encode(&r)
+	// var objs []ditto.Object
+	// for _, dir := range dirs {
+	// 	objs = append(objs, dir)
+	// }
+	// rets := ditto.Filter(objs, func(o ditto.Object) bool {
+	// 	return strings.Contains(o.GetPath(), "dev")
+	// })
+	// pp.Println(rets)
+
+	// for _, ignore := range opt.Ignores {
+	// 	stats = stats.Filter(func(stat ditto.Stat) bool {
+	// 		match, err := doublestar.Match(ignore, stat.Path)
+	// 		if err != nil {
+	// 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+	// 			return false
+	// 		}
+	// 		return !match
+	// 	})
+	// }
+
+	// r := struct {
+	// 	Files []ditto.File `json:"files"`
+	// 	Dirs  []ditto.Dir  `json:"dirs"`
+	// }{
+	// 	Files: files,
+	// 	Dirs:  dirs,
+	// }
+	return json.NewEncoder(os.Stdout).Encode(&result)
 }
