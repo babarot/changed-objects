@@ -20,11 +20,12 @@ var (
 type Option struct {
 	Version bool `short:"v" long:"version" description:"Show version"`
 
-	DefaultBranch string `long:"default-branch" description:"Specify default branch" default:"main"`
-	MergeBase     string `long:"merge-base" description:"Specify merge-base revision"`
+	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
+	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
+	Ignores       []string `long:"ignore" description:"Ignore string pattern"`
+	GroupBy       string   `long:"group-by" description:"Grouping"`
 
 	Filters     []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
-	Ignores     []string `long:"ignore" description:"Ignore string pattern"`
 	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
 	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 }
@@ -119,11 +120,10 @@ func run(args []string) error {
 	// }
 
 	d, err := ditto.New(repo, args, ditto.Option{
-		// DirExist:      opt.DirExist,
-		// DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		Ignores:       opt.Ignores,
+		GroupBy:       opt.GroupBy,
 	})
 	if err != nil {
 		return err
@@ -143,35 +143,6 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	// for _, o := range objects {
-	// 	data, err := json.Marshal(o)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	fmt.Printf("%s\n", string(data))
-	// }
-	// fmt.Printf("%#v\n", objects)
-
-	// var objs []ditto.Object
-	// for _, dir := range dirs {
-	// 	objs = append(objs, dir)
-	// }
-	// rets := ditto.Filter(objs, func(o ditto.Object) bool {
-	// 	return strings.Contains(o.GetPath(), "dev")
-	// })
-	// pp.Println(rets)
-
-	// for _, ignore := range opt.Ignores {
-	// 	stats = stats.Filter(func(stat ditto.Stat) bool {
-	// 		match, err := doublestar.Match(ignore, stat.Path)
-	// 		if err != nil {
-	// 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-	// 			return false
-	// 		}
-	// 		return !match
-	// 	})
-	// }
 
 	// r := struct {
 	// 	Files []ditto.File `json:"files"`

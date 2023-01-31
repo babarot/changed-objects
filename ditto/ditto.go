@@ -34,8 +34,8 @@ type Dirs []Dir
 type Option struct {
 	DefaultBranch string
 	MergeBase     string
-
-	Ignores []string
+	Ignores       []string
+	GroupBy       string
 }
 
 type client struct {
@@ -116,15 +116,20 @@ func (c client) GetFiles() (Files, error) {
 	var files Files
 
 	for _, change := range c.changes {
-		if len(c.args) > 0 {
-			arg := c.args[0]
-			matched, _ := doublestar.Match(filepath.Join(arg, "**"), change.Path)
+		if len(c.opt.GroupBy) > 0 {
+			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetFiles: %s is not matched in %s\n", change.Path, arg)
+				log.Printf("[DEBUG] GetFiles: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
 				continue
 			}
 		}
 		files = append(files, getFile(change))
+	}
+
+	for _, arg := range c.args {
+		files = files.Filter(func(file File) bool {
+			return strings.Index(file.Path, arg) == 0
+		})
 	}
 
 	for _, ignore := range c.opt.Ignores {
@@ -160,12 +165,11 @@ func (c client) GetDirs() ([]Dir, error) {
 
 	for _, change := range c.changes {
 		path := change.Dir
-		if len(c.args) > 0 {
-			arg := c.args[0]
-			length := len(strings.Split(arg, "/"))
-			matched, _ := doublestar.Match(filepath.Join(arg, "**"), change.Path)
+		if len(c.opt.GroupBy) > 0 {
+			length := len(strings.Split(c.opt.GroupBy, "/"))
+			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, arg)
+				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
 				continue
 			}
 			path = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
@@ -186,6 +190,12 @@ func (c client) GetDirs() ([]Dir, error) {
 	var dirs Dirs
 	for _, dir := range matrix {
 		dirs = append(dirs, dir)
+	}
+
+	for _, arg := range c.args {
+		dirs = dirs.Filter(func(dir Dir) bool {
+			return strings.Index(dir.Path, arg) == 0
+		})
 	}
 
 	for _, ignore := range c.opt.Ignores {
