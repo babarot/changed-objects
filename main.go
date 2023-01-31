@@ -26,6 +26,8 @@ type Option struct {
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
 
+	DirChunk string `long:"dir-chunk"`
+
 	Ignores []string `long:"ignore" description:"Ignore string pattern"`
 
 	Version bool `short:"v" long:"version" description:"Show version"`
@@ -144,9 +146,10 @@ func run(args []string) error {
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		OnlyDir:       opt.OnlyDir,
+		DirChunk:      opt.DirChunk,
 	}
 
-	files, err := ditto.GetFile(repo, args, dopt)
+	files, err := ditto.GetFiles(repo, args, dopt)
 	if err != nil {
 		return err
 	}

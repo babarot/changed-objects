@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/b4b4r07/changed-objects/git"
+	"github.com/bmatcuk/doublestar"
 )
 
 type File struct {
@@ -46,7 +47,7 @@ type Option struct {
 	OnlyDir bool
 }
 
-func GetFile(path string, args []string, opt Option) ([]File, error) {
+func GetFiles(path string, args []string, opt Option) ([]File, error) {
 	var files []File
 
 	changes, err := git.Open(git.Config{
@@ -121,23 +122,33 @@ func GetDirs(path string, args []string, opt Option) ([]Dir, error) {
 		return []Dir{}, err
 	}
 
-	hit := make(map[string]bool)
-	data := make(map[string]*Dir)
+	data := make(map[string]Dir)
+	chunk := opt.DirChunk
+	length := len(strings.Split(chunk, "/"))
 
 	for _, change := range changes {
-		if hit[change.Dir] {
-			data[change.Dir].Files = append(data[change.Dir].Files, getFile(change))
+		dir := change.Dir
+		if len(chunk) > 0 {
+			matched, _ := doublestar.Match(filepath.Join(chunk, "**"), change.Path)
+			if !matched {
+				continue
+			}
+			dir = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
+		}
+		d, ok := data[dir]
+		if ok {
+			d.Files = append(d.Files, getFile(change))
 		} else {
-			hit[change.Dir] = true
-			data[change.Dir] = &Dir{
-				Path:  filepath.Dir(change.Path),
+			d = Dir{
+				Path:  dir,
 				Files: []File{getFile(change)},
 			}
 		}
+		data[dir] = d
 	}
 
 	for _, d := range data {
-		dirs = append(dirs, *d)
+		dirs = append(dirs, d)
 	}
 
 	// if len(args) > 0 {
