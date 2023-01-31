@@ -5,13 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/b4b4r07/changed-objects/git"
 )
 
 // Stat represents the stats for a file in a commit.
 type Stat struct {
-	Kind     Kind   `json:"kind"`
-	Path     string `json:"path"`
-	DirExist bool   `json:"dir-exist"`
+	Kind     git.Kind `json:"kind"`
+	Path     string   `json:"path"`
+	DirExist bool     `json:"dir-exist"`
 }
 
 type Stats []Stat
@@ -25,25 +27,24 @@ type Option struct {
 	OnlyDir bool
 }
 
-func Get(fp string, opt Option, args []string) (Stats, error) {
+func Get(fp string, args []string, opt Option) (Stats, error) {
 	var stats Stats
 
-	client, err := newGitClient(fp, opt.DefaultBranch, opt.MergeBase)
-	if err != nil {
-		return stats, err
-	}
-
-	files, err := client.Run()
+	files, err := git.Open(git.Config{
+		Path:          fp,
+		DefaultBranch: opt.DefaultBranch,
+		MergeBase:     opt.MergeBase,
+	})
 	if err != nil {
 		return stats, err
 	}
 
 	for _, file := range files {
 		stats = append(stats, Stat{
-			Kind: file.kind,
-			Path: file.name,
+			Kind: file.Kind,
+			Path: file.Name,
 			DirExist: func() bool {
-				_, err := os.Stat(filepath.Dir(file.name))
+				_, err := os.Stat(filepath.Dir(file.Name))
 				return err == nil
 			}(),
 		})
@@ -108,9 +109,9 @@ func (ss *Stats) Dirs() Stats {
 			_, err := os.Stat(dir)
 			return err == nil
 		}()
-		kind := Deletion
+		kind := git.Deletion
 		if exists {
-			kind = Modification
+			kind = git.Modification
 		}
 		if !m[dir] {
 			m[dir] = true

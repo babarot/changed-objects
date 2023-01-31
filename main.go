@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/b4b4r07/changed-objects/ditto"
+	"github.com/b4b4r07/changed-objects/git"
 	clilog "github.com/b4b4r07/go-cli-log"
 	"github.com/bmatcuk/doublestar"
 	"github.com/jessevdk/go-flags"
@@ -53,6 +54,12 @@ func run(args []string) error {
 		return err
 	}
 
+	switch {
+	case opt.Version:
+		fmt.Fprintf(os.Stdout, "%s (%s)\n", Version, Revision)
+		return nil
+	}
+
 	wd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -64,19 +71,13 @@ func run(args []string) error {
 	}
 	log.Printf("[INFO] git repo: %s", repo)
 
-	switch {
-	case opt.Version:
-		fmt.Fprintf(os.Stdout, "%s (%s)\n", Version, Revision)
-		return nil
-	}
-
-	stats, err := ditto.Get(repo, ditto.Option{
+	stats, err := ditto.Get(repo, args, ditto.Option{
 		DirExist:      opt.DirExist,
 		DirNotExist:   opt.DirNotExist,
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		OnlyDir:       opt.OnlyDir,
-	}, args)
+	})
 
 	log.Printf("[INFO] Option filters: %#v", opt.Filters)
 	var ss ditto.Stats
@@ -87,15 +88,15 @@ func run(args []string) error {
 			break
 		case "added":
 			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == ditto.Addition
+				return stat.Kind == git.Addition
 			})...)
 		case "deleted":
 			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == ditto.Deletion
+				return stat.Kind == git.Deletion
 			})...)
 		case "modified":
 			ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-				return stat.Kind == ditto.Modification
+				return stat.Kind == git.Modification
 			})...)
 		case "":
 			return fmt.Errorf("requires a filter at least one")

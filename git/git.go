@@ -1,4 +1,4 @@
-package ditto
+package git
 
 import (
 	"encoding/json"
@@ -12,81 +12,75 @@ import (
 	"gopkg.in/src-d/go-git.v4/utils/merkletrie"
 )
 
-type gitClient struct {
-	repo          *git.Repository
-	defaultBranch string
-	mergeBase     string
+type Config struct {
+	repo *git.Repository
+
+	Path          string
+	DefaultBranch string
+	MergeBase     string
 }
 
-type file struct {
-	name string
-	kind Kind
+type Change struct {
+	Name string
+	Kind Kind
 }
 
-func newGitClient(filepath, defaultBranch, mergeBase string) (gitClient, error) {
-	repo, err := git.PlainOpen(filepath)
+func Open(cfg Config) ([]Change, error) {
+	repo, err := git.PlainOpen(cfg.Path)
 	if err != nil {
-		return gitClient{}, fmt.Errorf("cannot open repository: %w", err)
+		return []Change{}, fmt.Errorf("cannot open repository: %w", err)
 	}
-	return gitClient{
-		repo:          repo,
-		defaultBranch: defaultBranch,
-		mergeBase:     mergeBase,
-	}, nil
-}
+	cfg.repo = repo
 
-func (c gitClient) Run() ([]file, error) {
-	var files []file
-
-	branch, err := c.getCurrentBranch()
+	branch, err := cfg.getCurrentBranch()
 	if err != nil {
-		return files, err
+		return []Change{}, err
 	}
 	log.Printf("[TRACE] Getting current branch: %s", branch)
 
 	var base *object.Commit
 
 	switch branch {
-	case c.defaultBranch:
+	case cfg.DefaultBranch:
 		log.Printf("[DEBUG] Getting previous HEAD commit")
-		prev, err := c.previousCommit()
+		prev, err := cfg.previousCommit()
 		if err != nil {
-			return files, err
+			return []Change{}, err
 		}
 		base = prev
 	default:
 		log.Printf("[DEBUG] Getting remote commit")
-		remote, err := c.remoteCommit("origin/" + c.defaultBranch)
+		remote, err := cfg.remoteCommit("origin/" + cfg.DefaultBranch)
 		if err != nil {
-			return files, err
+			return []Change{}, err
 		}
 		base = remote
 	}
 
-	if c.mergeBase != "" {
+	if len(cfg.MergeBase) > 0 {
 		log.Printf("[DEBUG] Comparing with merge-base")
-		h, err := c.repo.Head()
+		h, err := cfg.repo.Head()
 		if err != nil {
-			return files, err
+			return []Change{}, err
 		}
 		currentBranch := h.Name().Short()
-		base, err = c.mergeBaseCommit(c.mergeBase, currentBranch)
+		base, err = cfg.mergeBaseCommit(cfg.MergeBase, currentBranch)
 		if err != nil {
-			return files, err
+			return []Change{}, err
 		}
 	}
 
 	log.Printf("[DEBUG] Getting current commit")
-	current, err := c.currentCommit()
+	current, err := cfg.currentCommit()
 	if err != nil {
-		return files, err
+		return []Change{}, err
 	}
 
-	return c.getFiles(base, current)
+	return cfg.getChanges(base, current)
 }
 
 // https://github.com/src-d/go-git/issues/1030
-func (c gitClient) getCurrentBranch() (string, error) {
+func (c Config) getCurrentBranch() (string, error) {
 	branchRefs, err := c.repo.Branches()
 	if err != nil {
 		return "", err
@@ -113,7 +107,7 @@ func (c gitClient) getCurrentBranch() (string, error) {
 	return currentBranchName, nil
 }
 
-func (c gitClient) currentCommit() (*object.Commit, error) {
+func (c Config) currentCommit() (*object.Commit, error) {
 	ref, err := c.repo.Head()
 	if err != nil {
 		return nil, err
@@ -123,7 +117,7 @@ func (c gitClient) currentCommit() (*object.Commit, error) {
 	return c.repo.CommitObject(ref.Hash())
 }
 
-func (c gitClient) previousCommit() (*object.Commit, error) {
+func (c Config) previousCommit() (*object.Commit, error) {
 	hash, err := c.repo.ResolveRevision("HEAD^")
 	if err != nil {
 		return nil, err
@@ -132,7 +126,7 @@ func (c gitClient) previousCommit() (*object.Commit, error) {
 	return c.repo.CommitObject(*hash)
 }
 
-func (c gitClient) remoteCommit(name string) (*object.Commit, error) {
+func (c Config) remoteCommit(name string) (*object.Commit, error) {
 	refs, err := c.repo.References()
 	if err != nil {
 		return nil, err
@@ -158,7 +152,7 @@ func (c gitClient) remoteCommit(name string) (*object.Commit, error) {
 }
 
 // https://github.com/go-git/go-git/blob/master/_examples/merge_base/main.go
-func (c gitClient) mergeBaseCommit(baseRev, commitRev string) (*object.Commit, error) {
+func (c Config) mergeBaseCommit(baseRev, commitRev string) (*object.Commit, error) {
 	log.Printf("[DEBUG] baseRev: %s, commitRev: %s", baseRev, commitRev)
 
 	// Get the hashes of the passed revisions
@@ -219,61 +213,50 @@ func (k Kind) MarshalJSON() ([]byte, error) {
 	return json.Marshal(k.String())
 }
 
-func (c gitClient) getFiles(from, to *object.Commit) ([]file, error) {
+func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 	src, err := to.Tree()
 	if err != nil {
-		return []file{}, err
+		return []Change{}, err
 	}
 
 	dst, err := from.Tree()
 	if err != nil {
-		return []file{}, err
+		return []Change{}, err
 	}
 
 	changes, err := object.DiffTree(dst, src)
 	if err != nil {
-		return []file{}, err
+		return []Change{}, err
 	}
 
 	log.Printf("[DEBUG] a number of changes: %d", len(changes))
 
-	var files []file
+	var cs []Change
 	for _, change := range changes {
-		file, err := fileStatsFromChange(change, c.repo)
+		action, err := change.Action()
 		if err != nil {
-			continue
+			return []Change{}, err
 		}
-		log.Printf("[DEBUG] file: %#v", file)
-		files = append(files, file)
+		var kind Kind
+		var path string
+		switch action {
+		case merkletrie.Delete:
+			kind = Deletion
+			path = change.From.Name
+		case merkletrie.Insert:
+			kind = Addition
+			path = change.To.Name
+		case merkletrie.Modify:
+			kind = Modification
+			path = change.To.Name
+		default:
+			kind = Unknown
+		}
+		cs = append(cs, Change{
+			Name: path,
+			Kind: kind,
+		})
 	}
 
-	return files, nil
-}
-
-func fileStatsFromChange(change *object.Change, repo *git.Repository) (file, error) {
-	action, err := change.Action()
-	if err != nil {
-		return file{}, err
-	}
-
-	var kind Kind
-	var path string
-	switch action {
-	case merkletrie.Delete:
-		kind = Deletion
-		path = change.From.Name
-	case merkletrie.Insert:
-		kind = Addition
-		path = change.To.Name
-	case merkletrie.Modify:
-		kind = Modification
-		path = change.To.Name
-	default:
-		kind = Unknown
-	}
-
-	return file{
-		name: path,
-		kind: kind,
-	}, nil
+	return cs, nil
 }
