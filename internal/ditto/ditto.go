@@ -34,7 +34,7 @@ type Dirs []Dir
 type Option struct {
 	DefaultBranch string
 	MergeBase     string
-	Filters       []string
+	Types         []string
 	Ignores       []string
 	GroupBy       string
 }
@@ -97,10 +97,10 @@ func (c client) Get() (Result, error) {
 		return Result{}, err
 	}
 
-	if len(c.opt.Filters) > 0 {
+	if len(c.opt.Types) > 0 {
 		tmpFiles := Files{}
 		tmpDirs := Dirs{}
-		for _, filter := range c.opt.Filters {
+		for _, filter := range c.opt.Types {
 			switch filter {
 			case "added":
 				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {

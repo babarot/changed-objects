@@ -25,7 +25,7 @@ type Option struct {
 	Ignores       []string `long:"ignore" description:"Ignore string pattern"`
 	GroupBy       string   `long:"group-by" description:"Grouping"`
 
-	Filters     []string `long:"filter" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
+	Types       []string `long:"type" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
 	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
 	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 }
@@ -98,7 +98,7 @@ func run(args []string) error {
 		MergeBase:     opt.MergeBase,
 		Ignores:       opt.Ignores,
 		GroupBy:       opt.GroupBy,
-		Filters:       opt.Filters,
+		Types:         opt.Types,
 	})
 	if err != nil {
 		return err

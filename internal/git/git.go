@@ -59,6 +59,18 @@ func Open(cfg Config) ([]Change, error) {
 		base = remote
 	}
 
+	if base == nil {
+		db, err := cfg.getDefaultBranch()
+		if err != nil {
+			return []Change{}, err
+		}
+		remote, err := cfg.remoteCommit(db)
+		if err != nil {
+			return []Change{}, err
+		}
+		base = remote
+	}
+
 	if len(cfg.MergeBase) > 0 {
 		log.Printf("[DEBUG] Comparing with merge-base")
 		h, err := cfg.repo.Head()
@@ -66,9 +78,12 @@ func Open(cfg Config) ([]Change, error) {
 			return []Change{}, err
 		}
 		currentBranch := h.Name().Short()
-		base, err = cfg.mergeBaseCommit(cfg.MergeBase, currentBranch)
+		mb, err := cfg.mergeBaseCommit(cfg.MergeBase, currentBranch)
 		if err != nil {
 			return []Change{}, err
+		}
+		if mb != nil {
+			base = mb
 		}
 	}
 
@@ -216,6 +231,8 @@ func (t Type) MarshalJSON() ([]byte, error) {
 }
 
 func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
+	log.Printf("[TRACE] git.getChanges: from %#v, to %#v\n", from, to)
+
 	src, err := to.Tree()
 	if err != nil {
 		return []Change{}, err
@@ -262,4 +279,21 @@ func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 	}
 
 	return cs, nil
+}
+
+func (c Config) getDefaultBranch() (string, error) {
+	// hash, err := c.repo.ResolveRevision(plumbing.Revision("refs/remotes/origin/HEAD"))
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Printf("DEFAULT BRANCH is... %#v\n", hash.String())
+	// ref, err := c.repo.Reference(plumbing.Master, true)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	ref, err := c.repo.Reference(plumbing.ReferenceName("refs/remotes/origin/HEAD"), true)
+	if err != nil {
+		return "", err
+	}
+	return ref.Name().Short(), nil
 }
