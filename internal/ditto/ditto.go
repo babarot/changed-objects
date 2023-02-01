@@ -13,7 +13,7 @@ import (
 type File struct {
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`
-	Kind      git.Kind  `json:"kind"`
+	Type      git.Type  `json:"type"`
 	ParentDir ParentDir `json:"parent_dir"`
 }
 
@@ -62,18 +62,6 @@ func New(path string, args []string, opt Option) (client, error) {
 	}, nil
 }
 
-type Object interface {
-	GetPath() string
-}
-
-func (f File) GetPath() string {
-	return f.Path
-}
-
-func (d Dir) GetPath() string {
-	return d.Path
-}
-
 func (fs *Files) Filter(f func(File) bool) Files {
 	files := make(Files, 0)
 	for _, file := range *fs {
@@ -116,33 +104,33 @@ func (c client) Get() (Result, error) {
 			switch filter {
 			case "added":
 				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
-					return file.Kind == git.Addition
+					return file.Type == git.Addition
 				})...)
 				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
 					files := dir.Files.Filter(func(file File) bool {
-						return file.Kind == git.Addition
+						return file.Type == git.Addition
 					})
 					dir.Files = files
 					return len(files) > 0
 				})...)
 			case "deleted":
 				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
-					return file.Kind == git.Deletion
+					return file.Type == git.Deletion
 				})...)
 				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
 					files := dir.Files.Filter(func(file File) bool {
-						return file.Kind == git.Deletion
+						return file.Type == git.Deletion
 					})
 					dir.Files = files
 					return len(files) > 0
 				})...)
 			case "modified":
 				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
-					return file.Kind == git.Modification
+					return file.Type == git.Modification
 				})...)
 				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
 					files := dir.Files.Filter(func(file File) bool {
-						return file.Kind == git.Modification
+						return file.Type == git.Modification
 					})
 					dir.Files = files
 					return len(files) > 0
@@ -196,7 +184,7 @@ func getFile(change git.Change) File {
 	return File{
 		Name: filepath.Base(change.Path),
 		Path: change.Path,
-		Kind: change.Kind,
+		Type: change.Type,
 		ParentDir: ParentDir{
 			Path: change.Dir,
 			Exist: func() bool {

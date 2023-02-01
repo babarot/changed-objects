@@ -24,7 +24,7 @@ type Config struct {
 type Change struct {
 	Path string
 	Dir  string
-	Kind Kind
+	Type Type
 }
 
 func Open(cfg Config) ([]Change, error) {
@@ -189,30 +189,30 @@ func (c Config) mergeBaseCommit(baseRev, commitRev string) (*object.Commit, erro
 	return res[0], nil
 }
 
-type Kind int
+type Type int
 
 const (
-	Addition Kind = iota
+	Addition Type = iota
 	Deletion
 	Modification
 	Unknown
 )
 
-func (k Kind) String() string {
-	switch k {
+func (t Type) String() string {
+	switch t {
 	case Addition:
-		return "insert"
+		return "added"
 	case Deletion:
-		return "delete"
+		return "deleted"
 	case Modification:
-		return "modify"
+		return "modified"
 	default:
 		return "unknown"
 	}
 }
 
-func (k Kind) MarshalJSON() ([]byte, error) {
-	return json.Marshal(k.String())
+func (t Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
 }
 
 func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
@@ -239,25 +239,25 @@ func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 		if err != nil {
 			return []Change{}, err
 		}
-		var kind Kind
+		var ty Type
 		var path string
 		switch action {
 		case merkletrie.Delete:
-			kind = Deletion
+			ty = Deletion
 			path = change.From.Name
 		case merkletrie.Insert:
-			kind = Addition
+			ty = Addition
 			path = change.To.Name
 		case merkletrie.Modify:
-			kind = Modification
+			ty = Modification
 			path = change.To.Name
 		default:
-			kind = Unknown
+			ty = Unknown
 		}
 		cs = append(cs, Change{
 			Path: path,
 			Dir:  filepath.Dir(path),
-			Kind: kind,
+			Type: ty,
 		})
 	}
 
