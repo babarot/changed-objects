@@ -175,8 +175,10 @@ func (c client) getDirs() (Dirs, error) {
 		}
 		dir, ok := matrix[path]
 		if ok {
+			log.Printf("[TRACE] getDirs: updated %q", path)
 			dir.Files = append(dir.Files, getFile(change))
 		} else {
+			log.Printf("[TRACE] getDirs: created %q", path)
 			dir = Dir{
 				Path: path,
 				Exist: func() bool {
@@ -186,11 +188,13 @@ func (c client) getDirs() (Dirs, error) {
 				Files: Files{getFile(change)},
 			}
 		}
+		log.Printf("[TRACE] getDirs: add %q to dir matrix", change.Path)
 		matrix[path] = dir
 	}
 
 	var dirs Dirs
 	for _, dir := range matrix {
+		log.Printf("[TRACE] getDirs: convert dirs matrix to slice: %q", dir.Path)
 		dirs = append(dirs, dir)
 	}
 
