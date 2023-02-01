@@ -34,15 +34,15 @@ func Open(cfg Config) ([]Change, error) {
 	}
 	cfg.repo = repo
 
-	branch, err := cfg.getCurrentBranch()
+	currentBranch, err := cfg.getCurrentBranch()
 	if err != nil {
 		return []Change{}, err
 	}
-	log.Printf("[TRACE] Getting current branch: %s", branch)
+	log.Printf("[TRACE] Getting current branch: %s", currentBranch)
 
 	var base *object.Commit
 
-	switch branch {
+	switch currentBranch {
 	case cfg.DefaultBranch:
 		log.Printf("[DEBUG] Getting previous HEAD commit")
 		prev, err := cfg.previousCommit()
@@ -60,11 +60,12 @@ func Open(cfg Config) ([]Change, error) {
 	}
 
 	if base == nil {
-		db, err := cfg.getDefaultBranch()
+		defaultBranch, err := cfg.getDefaultBranch()
 		if err != nil {
-			return []Change{}, err
+			return []Change{}, fmt.Errorf("%w: default branch %s is not wrong", err, cfg.DefaultBranch)
 		}
-		remote, err := cfg.remoteCommit(db)
+		log.Printf("[DEBUG] base is nil. So get remote commit from %q", defaultBranch)
+		remote, err := cfg.remoteCommit(defaultBranch)
 		if err != nil {
 			return []Change{}, err
 		}
@@ -282,18 +283,10 @@ func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 }
 
 func (c Config) getDefaultBranch() (string, error) {
-	// hash, err := c.repo.ResolveRevision(plumbing.Revision("refs/remotes/origin/HEAD"))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Printf("DEFAULT BRANCH is... %#v\n", hash.String())
-	// ref, err := c.repo.Reference(plumbing.Master, true)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	ref, err := c.repo.Reference(plumbing.ReferenceName("refs/remotes/origin/HEAD"), true)
+	name := "refs/remotes/origin/HEAD"
+	ref, err := c.repo.Reference(plumbing.ReferenceName(name), true)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %s", err, name)
 	}
 	return ref.Name().Short(), nil
 }
