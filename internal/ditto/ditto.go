@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/b4b4r07/changed-objects/git"
+	"github.com/b4b4r07/changed-objects/internal/git"
 	"github.com/bmatcuk/doublestar/v4"
 )
 
@@ -34,6 +34,7 @@ type Dirs []Dir
 type Option struct {
 	DefaultBranch string
 	MergeBase     string
+	Filters       []string
 	Ignores       []string
 	GroupBy       string
 }
@@ -53,6 +54,7 @@ func New(path string, args []string, opt Option) (client, error) {
 	if err != nil {
 		return client{}, err
 	}
+
 	return client{
 		args:    args,
 		opt:     opt,
@@ -93,8 +95,8 @@ func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
 }
 
 type Result struct {
-	Files []File `json:"files"`
-	Dirs  []Dir  `json:"dirs"`
+	Files Files `json:"files"`
+	Dirs  Dirs  `json:"dirs"`
 }
 
 func (c client) Get() (Result, error) {
@@ -106,6 +108,51 @@ func (c client) Get() (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+
+	if len(c.opt.Filters) > 0 {
+		tmpFiles := Files{}
+		tmpDirs := Dirs{}
+		for _, filter := range c.opt.Filters {
+			switch filter {
+			case "added":
+				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+					return file.Kind == git.Addition
+				})...)
+				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
+					files := dir.Files.Filter(func(file File) bool {
+						return file.Kind == git.Addition
+					})
+					dir.Files = files
+					return len(files) > 0
+				})...)
+			case "deleted":
+				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+					return file.Kind == git.Deletion
+				})...)
+				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
+					files := dir.Files.Filter(func(file File) bool {
+						return file.Kind == git.Deletion
+					})
+					dir.Files = files
+					return len(files) > 0
+				})...)
+			case "modified":
+				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+					return file.Kind == git.Modification
+				})...)
+				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
+					files := dir.Files.Filter(func(file File) bool {
+						return file.Kind == git.Modification
+					})
+					dir.Files = files
+					return len(files) > 0
+				})...)
+			}
+		}
+		files = tmpFiles
+		dirs = tmpDirs
+	}
+
 	return Result{
 		Files: files,
 		Dirs:  dirs,
@@ -160,7 +207,7 @@ func getFile(change git.Change) File {
 	}
 }
 
-func (c client) GetDirs() ([]Dir, error) {
+func (c client) GetDirs() (Dirs, error) {
 	matrix := make(map[string]Dir)
 
 	for _, change := range c.changes {

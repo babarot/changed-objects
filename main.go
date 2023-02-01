@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/b4b4r07/changed-objects/ditto"
+	"github.com/b4b4r07/changed-objects/internal/ditto"
 	clilog "github.com/b4b4r07/go-cli-log"
 	"github.com/jessevdk/go-flags"
 )
@@ -25,7 +25,7 @@ type Option struct {
 	Ignores       []string `long:"ignore" description:"Ignore string pattern"`
 	GroupBy       string   `long:"group-by" description:"Grouping"`
 
-	Filters     []string `long:"filter" description:"Filter the kind of changed objects" default:"all" choice:"added" choice:"modified" choice:"deleted" choice:"all"`
+	Filters     []string `long:"filter" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
 	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
 	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 }
@@ -68,32 +68,6 @@ func run(args []string) error {
 	}
 	log.Printf("[INFO] git repo: %s", repo)
 
-	// log.Printf("[INFO] Option filters: %#v", opt.Filters)
-	// var ss ditto.Stats
-	// for _, filter := range opt.Filters {
-	// 	switch filter {
-	// 	case "all":
-	// 		ss = stats
-	// 		break
-	// 	case "added":
-	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-	// 			return stat.Kind == git.Addition
-	// 		})...)
-	// 	case "deleted":
-	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-	// 			return stat.Kind == git.Deletion
-	// 		})...)
-	// 	case "modified":
-	// 		ss = append(ss, stats.Filter(func(stat ditto.Stat) bool {
-	// 			return stat.Kind == git.Modification
-	// 		})...)
-	// 	case "":
-	// 		return fmt.Errorf("requires a filter at least one")
-	// 	}
-	// }
-	// stats = ss
-	//
-
 	// switch opt.Output {
 	// case "json":
 	// 	r := struct {
@@ -124,32 +98,16 @@ func run(args []string) error {
 		MergeBase:     opt.MergeBase,
 		Ignores:       opt.Ignores,
 		GroupBy:       opt.GroupBy,
+		Filters:       opt.Filters,
 	})
 	if err != nil {
 		return err
 	}
-
-	// files, err := d.GetFiles()
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// dirs, err := d.GetDirs()
-	// if err != nil {
-	// 	return err
-	// }
 
 	result, err := d.Get()
 	if err != nil {
 		return err
 	}
 
-	// r := struct {
-	// 	Files []ditto.File `json:"files"`
-	// 	Dirs  []ditto.Dir  `json:"dirs"`
-	// }{
-	// 	Files: files,
-	// 	Dirs:  dirs,
-	// }
 	return json.NewEncoder(os.Stdout).Encode(&result)
 }
