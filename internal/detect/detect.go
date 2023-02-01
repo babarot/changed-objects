@@ -21,6 +21,7 @@ type Option struct {
 	Types         []string
 	Ignores       []string
 	GroupBy       string
+	ParentDir     string
 }
 
 func New(path string, args []string, opt Option) (client, error) {
@@ -94,6 +95,32 @@ func (c client) Run() (Diff, error) {
 		files = tmpFiles
 		dirs = tmpDirs
 	}
+
+	files = files.filter(func(file File) bool {
+		switch c.opt.ParentDir {
+		case "exist":
+			return file.ParentDir.Exist
+		case "deleted":
+			return !file.ParentDir.Exist
+		default:
+			return true
+		}
+	})
+
+	dirs = dirs.filter(func(dir Dir) bool {
+		files := dir.Files.filter(func(file File) bool {
+			switch c.opt.ParentDir {
+			case "exist":
+				return file.ParentDir.Exist
+			case "deleted":
+				return !file.ParentDir.Exist
+			default:
+				return true
+			}
+		})
+		dir.Files = files
+		return len(files) > 0
+	})
 
 	return Diff{
 		Files: files,
