@@ -55,45 +55,48 @@ func (c client) Run() (Diff, error) {
 
 	if len(c.opt.Types) > 0 {
 		tmpFiles := Files{}
-		tmpDirs := Dirs{}
-		for _, filter := range c.opt.Types {
-			switch filter {
+		for _, ty := range c.opt.Types {
+			switch ty {
 			case "added":
 				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Addition
-				})...)
-				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
-					files := dir.Files.filter(func(file File) bool {
-						return file.Type == git.Addition
-					})
-					dir.Files = files
-					return len(files) > 0
 				})...)
 			case "deleted":
 				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Deletion
 				})...)
-				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
-					files := dir.Files.filter(func(file File) bool {
-						return file.Type == git.Deletion
-					})
-					dir.Files = files
-					return len(files) > 0
-				})...)
 			case "modified":
 				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Modification
 				})...)
-				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
-					files := dir.Files.filter(func(file File) bool {
-						return file.Type == git.Modification
-					})
-					dir.Files = files
-					return len(files) > 0
-				})...)
 			}
 		}
 		files = tmpFiles
+
+		tmpDirs := Dirs{}
+		for _, dir := range dirs {
+			files := Files{}
+			for _, ty := range c.opt.Types {
+				switch ty {
+				case "added":
+					files = append(files, dir.Files.filter(func(file File) bool {
+						return file.Type == git.Addition
+					})...)
+				case "deleted":
+					files = append(files, dir.Files.filter(func(file File) bool {
+						return file.Type == git.Deletion
+					})...)
+				case "modified":
+					files = append(files, dir.Files.filter(func(file File) bool {
+						return file.Type == git.Modification
+					})...)
+				}
+			}
+			if len(files) > 0 {
+				dir.Files = files
+				tmpDirs = append(tmpDirs, dir)
+			}
+		}
 		dirs = tmpDirs
 	}
 
