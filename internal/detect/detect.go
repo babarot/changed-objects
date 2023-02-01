@@ -2,7 +2,6 @@ package detect
 
 import (
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -10,26 +9,11 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-type File struct {
-	Name      string    `json:"name"`
-	Path      string    `json:"path"`
-	Type      git.Type  `json:"type"`
-	ParentDir ParentDir `json:"parent_dir"`
+type client struct {
+	args    []string
+	opt     Option
+	changes []git.Change
 }
-
-type Files []File
-
-type ParentDir struct {
-	Path  string `json:"path"`
-	Exist bool   `json:"exist"`
-}
-
-type Dir struct {
-	Path  string `json:"path"`
-	Files Files  `json:"files"`
-}
-
-type Dirs []Dir
 
 type Option struct {
 	DefaultBranch string
@@ -37,12 +21,6 @@ type Option struct {
 	Types         []string
 	Ignores       []string
 	GroupBy       string
-}
-
-type client struct {
-	args    []string
-	opt     Option
-	changes []git.Change
 }
 
 func New(path string, args []string, opt Option) (client, error) {
@@ -62,31 +40,6 @@ func New(path string, args []string, opt Option) (client, error) {
 	}, nil
 }
 
-func (fs *Files) Filter(f func(File) bool) Files {
-	files := make(Files, 0)
-	for _, file := range *fs {
-		if f(file) {
-			files = append(files, file)
-		}
-	}
-	return files
-}
-
-func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
-	dirs := make(Dirs, 0)
-	for _, dir := range *ds {
-		if f(dir) {
-			dirs = append(dirs, dir)
-		}
-	}
-	return dirs
-}
-
-type Diff struct {
-	Files Files `json:"files"`
-	Dirs  Dirs  `json:"dirs"`
-}
-
 func (c client) Run() (Diff, error) {
 	files, err := c.getFiles()
 	if err != nil {
@@ -104,33 +57,33 @@ func (c client) Run() (Diff, error) {
 		for _, filter := range c.opt.Types {
 			switch filter {
 			case "added":
-				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Addition
 				})...)
-				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
-					files := dir.Files.Filter(func(file File) bool {
+				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
+					files := dir.Files.filter(func(file File) bool {
 						return file.Type == git.Addition
 					})
 					dir.Files = files
 					return len(files) > 0
 				})...)
 			case "deleted":
-				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Deletion
 				})...)
-				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
-					files := dir.Files.Filter(func(file File) bool {
+				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
+					files := dir.Files.filter(func(file File) bool {
 						return file.Type == git.Deletion
 					})
 					dir.Files = files
 					return len(files) > 0
 				})...)
 			case "modified":
-				tmpFiles = append(tmpFiles, files.Filter(func(file File) bool {
+				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
 					return file.Type == git.Modification
 				})...)
-				tmpDirs = append(tmpDirs, dirs.Filter(func(dir Dir) bool {
-					files := dir.Files.Filter(func(file File) bool {
+				tmpDirs = append(tmpDirs, dirs.filter(func(dir Dir) bool {
+					files := dir.Files.filter(func(file File) bool {
 						return file.Type == git.Modification
 					})
 					dir.Files = files
@@ -163,13 +116,13 @@ func (c client) getFiles() (Files, error) {
 	}
 
 	for _, arg := range c.args {
-		files = files.Filter(func(file File) bool {
+		files = files.filter(func(file File) bool {
 			return strings.Index(file.Path, arg) == 0
 		})
 	}
 
 	for _, ignore := range c.opt.Ignores {
-		files = files.Filter(func(file File) bool {
+		files = files.filter(func(file File) bool {
 			match, err := doublestar.Match(ignore, file.Path)
 			if err != nil {
 				return false
@@ -179,21 +132,6 @@ func (c client) getFiles() (Files, error) {
 	}
 
 	return files, nil
-}
-
-func getFile(change git.Change) File {
-	return File{
-		Name: filepath.Base(change.Path),
-		Path: change.Path,
-		Type: change.Type,
-		ParentDir: ParentDir{
-			Path: change.Dir,
-			Exist: func() bool {
-				_, err := os.Stat(change.Dir)
-				return err == nil
-			}(),
-		},
-	}
 }
 
 func (c client) getDirs() (Dirs, error) {
@@ -229,13 +167,13 @@ func (c client) getDirs() (Dirs, error) {
 	}
 
 	for _, arg := range c.args {
-		dirs = dirs.Filter(func(dir Dir) bool {
+		dirs = dirs.filter(func(dir Dir) bool {
 			return strings.Index(dir.Path, arg) == 0
 		})
 	}
 
 	for _, ignore := range c.opt.Ignores {
-		dirs = dirs.Filter(func(dir Dir) bool {
+		dirs = dirs.filter(func(dir Dir) bool {
 			match, err := doublestar.Match(ignore, dir.Path)
 			if err != nil {
 				return false
