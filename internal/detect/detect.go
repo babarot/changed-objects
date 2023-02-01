@@ -82,19 +82,20 @@ func (ds *Dirs) Filter(f func(Dir) bool) Dirs {
 	return dirs
 }
 
-type Result struct {
+type Diff struct {
 	Files Files `json:"files"`
 	Dirs  Dirs  `json:"dirs"`
 }
 
-func (c client) Get() (Result, error) {
-	files, err := c.GetFiles()
+func (c client) Run() (Diff, error) {
+	files, err := c.getFiles()
 	if err != nil {
-		return Result{}, err
+		return Diff{}, err
 	}
-	dirs, err := c.GetDirs()
+
+	dirs, err := c.getDirs()
 	if err != nil {
-		return Result{}, err
+		return Diff{}, err
 	}
 
 	if len(c.opt.Types) > 0 {
@@ -141,20 +142,20 @@ func (c client) Get() (Result, error) {
 		dirs = tmpDirs
 	}
 
-	return Result{
+	return Diff{
 		Files: files,
 		Dirs:  dirs,
 	}, nil
 }
 
-func (c client) GetFiles() (Files, error) {
+func (c client) getFiles() (Files, error) {
 	var files Files
 
 	for _, change := range c.changes {
 		if len(c.opt.GroupBy) > 0 {
 			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetFiles: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
+				log.Printf("[DEBUG] getFiles: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
 				continue
 			}
 		}
@@ -195,7 +196,7 @@ func getFile(change git.Change) File {
 	}
 }
 
-func (c client) GetDirs() (Dirs, error) {
+func (c client) getDirs() (Dirs, error) {
 	matrix := make(map[string]Dir)
 
 	for _, change := range c.changes {
@@ -204,11 +205,11 @@ func (c client) GetDirs() (Dirs, error) {
 			length := len(strings.Split(c.opt.GroupBy, "/"))
 			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
 			if !matched {
-				log.Printf("[DEBUG] GetDirs: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
+				log.Printf("[DEBUG] getDirs: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
 				continue
 			}
 			path = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
-			log.Printf("[DEBUG] GetDirs: chunk path %s\n", path)
+			log.Printf("[DEBUG] getDirs: chunk path %s\n", path)
 		}
 		dir, ok := matrix[path]
 		if ok {

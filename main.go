@@ -22,12 +22,9 @@ type Option struct {
 
 	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
 	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
+	Types         []string `long:"type" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
 	Ignores       []string `long:"ignore" description:"Ignore string pattern"`
 	GroupBy       string   `long:"group-by" description:"Grouping"`
-
-	Types       []string `long:"type" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
-	DirExist    bool     `long:"dir-exist" description:"Return changed objects if parent dir exists"`
-	DirNotExist bool     `long:"dir-not-exist" description:"Return changed objects if parent dir does not exist"`
 }
 
 func main() {
@@ -79,10 +76,10 @@ func run(args []string) error {
 		return err
 	}
 
-	result, err := d.Get()
+	diff, err := d.Run()
 	if err != nil {
 		return err
 	}
 
-	return json.NewEncoder(os.Stdout).Encode(&result)
+	return json.NewEncoder(os.Stdout).Encode(&diff)
 }
