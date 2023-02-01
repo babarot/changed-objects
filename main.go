@@ -25,6 +25,7 @@ type Option struct {
 	Types         []string `long:"type" description:"Specify the type of changed objects" choice:"added" choice:"modified" choice:"deleted"`
 	Ignores       []string `long:"ignore" description:"Specify a pattern to skip when showing changed objects"`
 	GroupBy       string   `long:"group-by" description:"Specify a pattern to make into one group when showing changed objects"`
+	ParentDir     string   `long:"parent-dir" description:"Filter objects by state of parent dir" choice:"exist" choice:"deleted" choice:"all" default:"all"`
 }
 
 func main() {
@@ -72,6 +73,7 @@ func run(args []string) error {
 		Ignores:       opt.Ignores,
 		GroupBy:       opt.GroupBy,
 		Types:         opt.Types,
+		ParentDir:     opt.ParentDir,
 	})
 	if err != nil {
 		return err
