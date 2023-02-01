@@ -20,11 +20,11 @@ var (
 type Option struct {
 	Version bool `short:"v" long:"version" description:"Show version"`
 
-	DefaultBranch string   `long:"default-branch" description:"Specify default branch" default:"main"`
-	MergeBase     string   `long:"merge-base" description:"Specify merge-base revision"`
-	Types         []string `long:"type" description:"Filter the kind of changed objects" choice:"added" choice:"modified" choice:"deleted"`
-	Ignores       []string `long:"ignore" description:"Ignore string pattern"`
-	GroupBy       string   `long:"group-by" description:"Grouping"`
+	DefaultBranch string   `long:"default-branch" short:"b" description:"Specify default branch name" default:"main"`
+	MergeBase     string   `long:"merge-base" short:"m" description:"Specify a Git reference as good common ancestors as possible for a merge"`
+	Types         []string `long:"type" description:"Specify the type of changed objects" choice:"added" choice:"modified" choice:"deleted"`
+	Ignores       []string `long:"ignore" description:"Specify a pattern to skip when showing changed objects"`
+	GroupBy       string   `long:"group-by" description:"Specify a pattern to make into one group when showing changed objects"`
 }
 
 func main() {

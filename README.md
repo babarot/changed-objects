@@ -1,38 +1,30 @@
 changed-objects
 ===============
 
-Get changed objects in Git commit
+Get changed objects within the commit histories by comparing between two points.
 
-![demo](demo.png)
+```console
+$ changed-objects --help
+Usage:
+  changed-objects [OPTIONS]
+
+Application Options:
+  -v, --version                       Show version
+  -b, --default-branch=               Specify default branch name (default: main)
+  -m, --merge-base=                   Specify a Git reference as good common ancestors as possible for a merge
+      --type=[added|modified|deleted] Specify the type of changed objects
+      --ignore=                       Specify a pattern to skip when showing changed objects
+      --group-by=                     Specify a pattern to make into one group when showing changed objects
+
+Help Options:
+  -h, --help                          Show this help message
+```
 
 ## Usage
 
-You can filter the type of changed objects. In this below example, only "added" and "modified" resources are filtered.
-
 ```console
-$ changed-objects --filter=modified --filter=added
-README.md
-functions/_enhancd_filter_interactive.fish
-functions/_enhancd_filter_join.fish
-functions/_enhancd_source_default.fish
-src/sources.sh
-functions/_enhancd_entry_git_root.fish
-src/entry.sh
-```
-
-You can get also them as JSON format.
-
-```console
-$ changed-objects --filter=modified --filter=added -o json
-{"repo":"/Users/b4b4r07/src/github.com/b4b4r07/enhancd","stats":[{"kind":"modify","path":"README.md"},{"kind":"modify","path":"functions/_enhancd_filter_interactive.fish"},{"kind":"modify","path":"functions/_enhancd_filter_join.fish"},{"kind":"modify","path":"functions/_enhancd_source_default.fish"},{"kind":"modify","path":"src/sources.sh"},{"kind":"insert","path":"functions/_enhancd_entry_git_root.fish"},{"kind":"insert","path":"src/entry.sh"}]}
-```
-
-Besides, you can get them with their parent directory name if `--dirname` is given
-
-```console
-$ changed-objects --dirname --filter=deleted
-.github
-.github/workflows
+$ changed-objects
+{"files":[{"name":"ditto.go","path":"ditto/ditto.go","type":"deleted","parent_dir":{"path":"ditto","exist":false}},{"name":"go.mod","path":"go.mod","type":"modified","parent_dir":{"path":".","exist":true}},{"name":"go.sum","path":"go.sum","type":"modified","parent_dir":{"path":".","exist":true}},{"name":"detect.go","path":"internal/detect/detect.go","type":"added","parent_dir":{"path":"internal/detect","exist":true}},{"name":"file.go","path":"internal/detect/file.go","type":"added","parent_dir":{"path":"internal/detect","exist":true}},{"name":"git.go","path":"internal/git/git.go","type":"added","parent_dir":{"path":"internal/git","exist":true}},{"name":"main.go","path":"main.go","type":"modified","parent_dir":{"path":".","exist":true}}],"dirs":[{"path":"ditto","files":[{"name":"ditto.go","path":"ditto/ditto.go","type":"deleted","parent_dir":{"path":"ditto","exist":false}}]},{"path":".","files":[{"name":"go.mod","path":"go.mod","type":"modified","parent_dir":{"path":".","exist":true}},{"name":"go.sum","path":"go.sum","type":"modified","parent_dir":{"path":".","exist":true}},{"name":"main.go","path":"main.go","type":"modified","parent_dir":{"path":".","exist":true}}]},{"path":"internal/detect","files":[{"name":"detect.go","path":"internal/detect/detect.go","type":"added","parent_dir":{"path":"internal/detect","exist":true}},{"name":"file.go","path":"internal/detect/file.go","type":"added","parent_dir":{"path":"internal/detect","exist":true}}]},{"path":"internal/git","files":[{"name":"git.go","path":"internal/git/git.go","type":"added","parent_dir":{"path":"internal/git","exist":true}}]}]}
 ```
 
 ## Installation
