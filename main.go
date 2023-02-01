@@ -43,7 +43,8 @@ func run(args []string) error {
 	log.Printf("[INFO] Args: %#v", args)
 
 	var opt Option
-	args, err := flags.ParseArgs(&opt, args)
+	p := flags.NewParser(&opt, flags.HelpFlag|flags.PassDoubleDash)
+	args, err := p.ParseArgs(args)
 	if err != nil {
 		return err
 	}
