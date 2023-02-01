@@ -1,4 +1,4 @@
-package ditto
+package detect
 
 import (
 	"log"

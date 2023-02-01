@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/b4b4r07/changed-objects/internal/ditto"
+	"github.com/b4b4r07/changed-objects/internal/detect"
 	clilog "github.com/b4b4r07/go-cli-log"
 	"github.com/jessevdk/go-flags"
 )
@@ -68,32 +68,7 @@ func run(args []string) error {
 	}
 	log.Printf("[INFO] git repo: %s", repo)
 
-	// switch opt.Output {
-	// case "json":
-	// 	r := struct {
-	// 		Repo  string      `json:"repo"`
-	// 		Stats ditto.Stats `json:"stats"`
-	// 	}{
-	// 		Repo:  repo,
-	// 		Stats: stats,
-	// 	}
-	// 	return json.NewEncoder(os.Stdout).Encode(&r)
-	// case "":
-	// 	// Remove redundants
-	// 	paths := make(map[string]bool)
-	// 	for _, stat := range stats {
-	// 		if !paths[stat.Path] {
-	// 			paths[stat.Path] = true
-	// 		}
-	// 	}
-	// 	for path := range paths {
-	// 		fmt.Fprintln(os.Stdout, path)
-	// 	}
-	// default:
-	// 	return fmt.Errorf("%s: invalid output format", opt.Output)
-	// }
-
-	d, err := ditto.New(repo, args, ditto.Option{
+	d, err := detect.New(repo, args, detect.Option{
 		DefaultBranch: opt.DefaultBranch,
 		MergeBase:     opt.MergeBase,
 		Ignores:       opt.Ignores,
