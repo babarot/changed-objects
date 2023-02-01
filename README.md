@@ -4,21 +4,20 @@ changed-objects
 Get changed objects within the commit histories by comparing between two points.
 
 ```console
-$ changed-objects --help
 Usage:
   changed-objects [OPTIONS]
 
 Application Options:
-  -v, --version                        Show version
-  -b, --default-branch=                Specify default branch name (default: main)
-  -m, --merge-base=                    Specify a Git reference as good common ancestors as possible for a merge
-      --type=[added|modified|deleted]  Specify the type of changed objects
-      --ignore=                        Specify a pattern to skip when showing changed objects
-      --group-by=                      Specify a pattern to make into one group when showing changed objects
-      --parent-dir=[exist|deleted|all] Filter objects by state of parent dir (default: all)
+  -v, --version                       Show version
+  -b, --default-branch=               Specify default branch name (default: main)
+  -m, --merge-base=                   Specify a Git reference as good common ancestors as possible for a merge
+      --type=[added|modified|deleted] Specify the type of changed objects
+      --ignore=                       Specify a pattern to skip when showing changed objects
+      --group-by=                     Specify a pattern to make into one group when showing changed objects
+      --dir-exist=[true|false|all]    Filter objects by state of dir existing (default: all)
 
 Help Options:
-  -h, --help                           Show this help message
+  -h, --help                          Show this help message
 ```
 
 ## Usage

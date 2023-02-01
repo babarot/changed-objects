@@ -2,6 +2,7 @@ package detect
 
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +22,7 @@ type Option struct {
 	Types         []string
 	Ignores       []string
 	GroupBy       string
-	ParentDir     string
+	DirExist      string
 }
 
 func New(path string, args []string, opt Option) (client, error) {
@@ -97,10 +98,10 @@ func (c client) Run() (Diff, error) {
 	}
 
 	files = files.filter(func(file File) bool {
-		switch c.opt.ParentDir {
-		case "exist":
+		switch c.opt.DirExist {
+		case "true":
 			return file.ParentDir.Exist
-		case "deleted":
+		case "false":
 			return !file.ParentDir.Exist
 		default:
 			return true
@@ -108,18 +109,14 @@ func (c client) Run() (Diff, error) {
 	})
 
 	dirs = dirs.filter(func(dir Dir) bool {
-		files := dir.Files.filter(func(file File) bool {
-			switch c.opt.ParentDir {
-			case "exist":
-				return file.ParentDir.Exist
-			case "deleted":
-				return !file.ParentDir.Exist
-			default:
-				return true
-			}
-		})
-		dir.Files = files
-		return len(files) > 0
+		switch c.opt.DirExist {
+		case "true":
+			return dir.Exist
+		case "false":
+			return !dir.Exist
+		default:
+			return true
+		}
 	})
 
 	return Diff{
@@ -181,7 +178,11 @@ func (c client) getDirs() (Dirs, error) {
 			dir.Files = append(dir.Files, getFile(change))
 		} else {
 			dir = Dir{
-				Path:  path,
+				Path: path,
+				Exist: func() bool {
+					_, err := os.Stat(path)
+					return err == nil
+				}(),
 				Files: Files{getFile(change)},
 			}
 		}
