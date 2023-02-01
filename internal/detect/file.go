@@ -23,6 +23,7 @@ type ParentDir struct {
 
 type Dir struct {
 	Path  string `json:"path"`
+	Exist bool   `json:"exist"`
 	Files Files  `json:"files"`
 }
 
