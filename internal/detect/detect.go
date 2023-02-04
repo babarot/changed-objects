@@ -161,20 +161,37 @@ func (c client) getFiles() (Files, error) {
 	return files, nil
 }
 
+func getStepByPattern(path, pattern string) string {
+	var steps []string
+	step := path
+	for {
+		steps = append(steps, step)
+		step = filepath.Dir(step)
+		if step == "." || step == "/" {
+			break
+		}
+	}
+	for _, step := range steps {
+		matched, _ := doublestar.Match(pattern, step)
+		if !matched {
+			log.Printf("[DEBUG] getDirs: %s is not matched in %s\n", step, pattern)
+			continue
+		}
+		return step
+	}
+	return ""
+}
+
 func (c client) getDirs() (Dirs, error) {
 	matrix := make(map[string]Dir)
 
 	for _, change := range c.changes {
 		path := change.Dir
 		if len(c.opt.GroupBy) > 0 {
-			length := len(strings.Split(c.opt.GroupBy, "/"))
-			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
-			if !matched {
-				log.Printf("[DEBUG] getDirs: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
-				continue
+			base := getStepByPattern(change.Path, c.opt.GroupBy)
+			if base != "" {
+				path = base
 			}
-			path = strings.Join(strings.Split(change.Path, "/")[0:length], "/")
-			log.Printf("[DEBUG] getDirs: chunk path %s\n", path)
 		}
 		dir, ok := matrix[path]
 		if ok {
