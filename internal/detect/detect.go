@@ -8,12 +8,15 @@ import (
 
 	"github.com/b4b4r07/changed-objects/internal/git"
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/k0kubun/pp/v3"
+	"github.com/samber/lo"
 )
 
 type client struct {
 	args    []string
 	opt     Option
 	changes []git.Change
+	pp      *pp.PrettyPrinter
 }
 
 type Option struct {
@@ -21,7 +24,7 @@ type Option struct {
 	MergeBase     string
 	Types         []string
 	Ignores       []string
-	GroupBy       string
+	GroupBy       []string
 	DirExist      string
 }
 
@@ -35,10 +38,14 @@ func New(path string, args []string, opt Option) (client, error) {
 		return client{}, err
 	}
 
+	printer := pp.New()
+	printer.SetColoringEnabled(false)
+	printer.SetExportedOnly(true)
 	return client{
 		args:    args,
 		opt:     opt,
 		changes: changes,
+		pp:      printer,
 	}, nil
 }
 
@@ -132,13 +139,6 @@ func (c client) getFiles() (Files, error) {
 	var files Files
 
 	for _, change := range c.changes {
-		if len(c.opt.GroupBy) > 0 {
-			matched, _ := doublestar.Match(filepath.Join(c.opt.GroupBy, "**"), change.Path)
-			if !matched {
-				log.Printf("[DEBUG] getFiles: %s is not matched in %s\n", change.Path, c.opt.GroupBy)
-				continue
-			}
-		}
 		files = append(files, getFile(change))
 	}
 
@@ -161,7 +161,7 @@ func (c client) getFiles() (Files, error) {
 	return files, nil
 }
 
-func getStepByPattern(path, pattern string) string {
+func getSteps(path string) []string {
 	var steps []string
 	step := path
 	for {
@@ -171,45 +171,93 @@ func getStepByPattern(path, pattern string) string {
 			break
 		}
 	}
-	for _, step := range steps {
-		matched, _ := doublestar.Match(pattern, step)
-		if !matched {
-			log.Printf("[DEBUG] getDirs: %s is not matched in %s\n", step, pattern)
+	return steps
+}
+
+// find directory (and git changes which it has) matched with given patterns.
+//
+// patterns:
+//   [
+//     "kubernetes/**/{base,overlays}",
+//     "kubernetes/**/{development,production}",
+//   ]
+// git changes:
+//   [
+//     "kubernetes/playground-cluster/cluster-resources/development/Namespace/service-A.yaml"
+//     "kubernetes/playground-cluster/namespaces/service-A/development/CronJob/test.yaml"
+//     "kubernetes/playground-cluster/namespaces/service-B/base/kustomization.yaml"
+//     "kubernetes/playground-cluster/namespaces/service-B/overlays/development/kustomization.yaml"
+//     "kubernetes/playground-cluster/namespaces/service-B/overlays/production/kustomization.yaml"
+//   ]
+// into this result:
+//   map[string][]git.Change{
+//     "kubernetes/playground-cluster/cluster-resources/development": [
+//        git.Change{"Path": "kubernetes/playground-cluster/cluster-resources/development/Namespace/service-A.yaml"},
+//     ]
+//     "kubernetes/playground-cluster/namespaces/service-A/development": [
+//        git.Change{"Path": "kubernetes/playground-cluster/namespaces/service-A/development/CronJob/test.yaml"},
+//     ]
+//     "kubernetes/playground-cluster/namespaces/service-B/base": [
+//        git.Change{"Path": "kubernetes/playground-cluster/namespaces/service-B/base/kustomization.yaml"},
+//     ]
+//     "kubernetes/playground-cluster/namespaces/service-B/overlays": [
+//        git.Change{"Path": "kubernetes/playground-cluster/namespaces/service-B/overlays/development/kustomization.yaml"},
+//        git.Change{"Path": "kubernetes/playground-cluster/namespaces/service-B/overlays/production/kustomization.yaml"},
+//     ]
+//   }
+func findDirWithPatterns(changes []git.Change, patterns []string) map[string][]git.Change {
+	found := make(map[string][]git.Change)
+
+	if len(patterns) == 0 {
+		for _, change := range changes {
+			// if no given patterns, find files located in parent dir.
+			patterns = append(patterns, filepath.Dir(change.Path))
+		}
+	}
+
+	for _, change := range changes {
+		steps := getSteps(filepath.Dir(change.Path))
+		var dirs []string
+		for _, pattern := range patterns {
+			dirs = append(dirs, lo.FilterMap[string, string](steps, func(step string, _ int) (string, bool) {
+				matched, _ := doublestar.Match(pattern, step)
+				return step, matched
+			})...)
+		}
+		if len(dirs) == 0 {
 			continue
 		}
-		return step
+		dir := lo.MinBy(dirs, func(item string, dir string) bool {
+			return len(strings.Split(item, "/")) < len(strings.Split(dir, "/"))
+		})
+		found[dir] = append(found[dir], change)
 	}
-	return ""
+
+	return found
 }
 
 func (c client) getDirs() (Dirs, error) {
 	matrix := make(map[string]Dir)
 
-	for _, change := range c.changes {
-		path := change.Dir
-		if len(c.opt.GroupBy) > 0 {
-			base := getStepByPattern(change.Path, c.opt.GroupBy)
-			if base != "" {
-				path = base
+	for path, changes := range findDirWithPatterns(c.changes, c.opt.GroupBy) {
+		for _, change := range changes {
+			dir, ok := matrix[path]
+			if ok {
+				log.Printf("[TRACE] getDirs: updated %q", path)
+				dir.Files = append(dir.Files, getFile(change))
+			} else {
+				log.Printf("[TRACE] getDirs: created %q", path)
+				dir = Dir{
+					Path: path,
+					Exist: func() bool {
+						_, err := os.Stat(path)
+						return err == nil
+					}(),
+					Files: Files{getFile(change)},
+				}
 			}
+			matrix[path] = dir
 		}
-		dir, ok := matrix[path]
-		if ok {
-			log.Printf("[TRACE] getDirs: updated %q", path)
-			dir.Files = append(dir.Files, getFile(change))
-		} else {
-			log.Printf("[TRACE] getDirs: created %q", path)
-			dir = Dir{
-				Path: path,
-				Exist: func() bool {
-					_, err := os.Stat(path)
-					return err == nil
-				}(),
-				Files: Files{getFile(change)},
-			}
-		}
-		log.Printf("[TRACE] getDirs: add %q to dir matrix", change.Path)
-		matrix[path] = dir
 	}
 
 	var dirs Dirs

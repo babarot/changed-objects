@@ -24,7 +24,7 @@ type Option struct {
 	MergeBase     string   `long:"merge-base" short:"m" description:"Specify a Git reference as good common ancestors as possible for a merge"`
 	Types         []string `long:"type" description:"Specify the type of changed objects" choice:"added" choice:"modified" choice:"deleted"`
 	Ignores       []string `long:"ignore" description:"Specify a pattern to skip when showing changed objects"`
-	GroupBy       string   `long:"group-by" description:"Specify a pattern to make into one group when showing changed objects"`
+	GroupBy       []string `long:"group-by" description:"Specify a pattern to make into one group when showing changed objects"`
 	DirExist      string   `long:"dir-exist" description:"Filter objects by state of dir existing" choice:"true" choice:"false" choice:"all" default:"all"`
 }
 
