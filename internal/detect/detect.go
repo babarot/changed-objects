@@ -60,45 +60,72 @@ func (c client) Run() (Diff, error) {
 		return Diff{}, err
 	}
 
+	// if len(c.opt.Types) > 0 {
+	// 	filtered := Files{}
+	// 	filtered = append(filtered, lo.Filter[File](files, func(file File, _ int) bool {
+	// 		switch file.Type.String() {
+	// 		case "added":
+	// 			return file.Type == git.Addition
+	// 		case "deleted":
+	// 			return file.Type == git.Deletion
+	// 		case "modified":
+	// 			return file.Type == git.Modification
+	// 		}
+	// 		return false
+	// 	})...)
+	// 	files = filtered
+	// }
+
 	if len(c.opt.Types) > 0 {
-		tmpFiles := Files{}
+		filtered := Files{}
 		for _, ty := range c.opt.Types {
-			switch ty {
-			case "added":
-				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
+			filtered = append(filtered, lo.Filter[File](files, func(file File, _ int) bool {
+				switch ty {
+				case "added":
 					return file.Type == git.Addition
-				})...)
-			case "deleted":
-				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
+				case "deleted":
 					return file.Type == git.Deletion
-				})...)
-			case "modified":
-				tmpFiles = append(tmpFiles, files.filter(func(file File) bool {
+				case "modified":
 					return file.Type == git.Modification
-				})...)
-			}
+				}
+				return false
+			})...)
 		}
-		files = tmpFiles
+		files = filtered
 
 		tmpDirs := Dirs{}
 		for _, dir := range dirs {
 			files := Files{}
 			for _, ty := range c.opt.Types {
-				switch ty {
-				case "added":
-					files = append(files, dir.Files.filter(func(file File) bool {
+				files = append(files, lo.Filter[File](dir.Files, func(file File, _ int) bool {
+					switch ty {
+					case "added":
 						return file.Type == git.Addition
-					})...)
-				case "deleted":
-					files = append(files, dir.Files.filter(func(file File) bool {
+					case "deleted":
 						return file.Type == git.Deletion
-					})...)
-				case "modified":
-					files = append(files, dir.Files.filter(func(file File) bool {
+					case "modified":
 						return file.Type == git.Modification
-					})...)
-				}
+					}
+					return false
+				})...)
 			}
+			// files := Files{}
+			// for _, ty := range c.opt.Types {
+			// 	switch ty {
+			// 	case "added":
+			// 		files = append(files, dir.Files.filter(func(file File) bool {
+			// 			return file.Type == git.Addition
+			// 		})...)
+			// 	case "deleted":
+			// 		files = append(files, dir.Files.filter(func(file File) bool {
+			// 			return file.Type == git.Deletion
+			// 		})...)
+			// 	case "modified":
+			// 		files = append(files, dir.Files.filter(func(file File) bool {
+			// 			return file.Type == git.Modification
+			// 		})...)
+			// 	}
+			// }
 			if len(files) > 0 {
 				dir.Files = files
 				tmpDirs = append(tmpDirs, dir)

@@ -60,9 +60,9 @@ func getFile(change git.Change) File {
 		Path: change.Path,
 		Type: change.Type,
 		ParentDir: ParentDir{
-			Path: change.Dir,
+			Path: filepath.Dir(change.Path),
 			Exist: func() bool {
-				_, err := os.Stat(change.Dir)
+				_, err := os.Stat(filepath.Dir(change.Path))
 				return err == nil
 			}(),
 		},
