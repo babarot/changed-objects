@@ -15,7 +15,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 		want     map[string][]git.Change
 	}{
 		{
-			name: "terraform",
+			name: "terraform: regular case",
 			changes: []git.Change{
 				{Path: "terraform/service-a/prod/a.tf", Type: git.Addition},
 				{Path: "terraform/service-a/prod/b.tf", Type: git.Addition},
@@ -47,7 +47,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "terraform case 2",
+			name: "terraform: including child dir",
 			changes: []git.Change{
 				{Path: "terraform/service-a/prod/a.tf", Type: git.Addition},
 				{Path: "terraform/service-a/prod/child/a.tf", Type: git.Addition},
@@ -58,6 +58,8 @@ func Test_findDirWithPatterns(t *testing.T) {
 			want: map[string][]git.Change{
 				"terraform/service-a/prod": {
 					{Path: "terraform/service-a/prod/a.tf", Type: git.Addition},
+				},
+				"terraform/service-a/prod/child": {
 					{Path: "terraform/service-a/prod/child/a.tf", Type: git.Addition},
 				},
 				"terraform/service-b/dev": {
@@ -67,9 +69,8 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes",
+			name: "kubernetes: regular case",
 			changes: []git.Change{
-				// {Path: "kubernetes/service-a/prod/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition},
@@ -80,11 +81,6 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 			patterns: []string{},
 			want: map[string][]git.Change{
-				// "kubernetes/service-a/prod": {
-				// 	{Path: "kubernetes/service-a/prod/a.yaml", Type: git.Addition},
-				// 	{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
-				// 	{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
-				// },
 				"kubernetes/service-a/prod/Deployment": {{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition}},
 				"kubernetes/service-a/prod/CronJob":    {{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition}},
 				"kubernetes/service-a/dev/Deployment":  {{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition}},
@@ -92,6 +88,100 @@ func Test_findDirWithPatterns(t *testing.T) {
 				"kubernetes/service-b/base":            {{Path: "kubernetes/service-b/base/a.yaml", Type: git.Addition}},
 				"kubernetes/service-b/overlays/dev":    {{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition}},
 				"kubernetes/service-b/overlays/prod":   {{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition}},
+			},
+		},
+		{
+			name: "kubernetes: regular case (max match)",
+			changes: []git.Change{
+				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+			},
+			// max match: if no patterns are passed
+			patterns: []string{},
+			want: map[string][]git.Change{
+				"kubernetes/service-a/prod":            {{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition}},
+				"kubernetes/service-a/prod/Deployment": {{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition}},
+				"kubernetes/service-a/prod/CronJob":    {{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition}},
+			},
+		},
+		{
+			name: "kubernetes: regular case (min match)",
+			changes: []git.Change{
+				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+			},
+			// min match: if patterns are passed
+			patterns: []string{"kubernetes/**/prod"},
+			want: map[string][]git.Change{
+				"kubernetes/service-a/prod": {
+					{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+				},
+			},
+		},
+		{
+			name: "kubernetes: regular case (min match #2)",
+			changes: []git.Change{
+				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+			},
+			// min match: if patterns are passed
+			patterns: []string{"kubernetes/*"},
+			want: map[string][]git.Change{
+				"kubernetes/service-a": {
+					{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+				},
+			},
+		},
+		{
+			name: "kubernetes: regular case (min match #3)",
+			changes: []git.Change{
+				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+			},
+			// min match: if patterns are passed
+			patterns: []string{"kubernetes/**"},
+			want: map[string][]git.Change{
+				"kubernetes": {
+					{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+				},
+			},
+		},
+		{
+			name: "kubernetes: pattern match",
+			changes: []git.Change{
+				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-a/dev/CronJob/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-b/base/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition},
+				{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition},
+			},
+			patterns: []string{
+				"kubernetes/**/{dev,prod}",
+				"kubernetes/**/overlays/{dev,prod}",
+			},
+			want: map[string][]git.Change{
+				"kubernetes/service-a/prod": {
+					{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
+					{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
+				},
+				"kubernetes/service-a/dev": {
+					{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition},
+					{Path: "kubernetes/service-a/dev/CronJob/a.yaml", Type: git.Addition},
+				},
+				"kubernetes/service-b/overlays/dev":  {{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition}},
+				"kubernetes/service-b/overlays/prod": {{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition}},
 			},
 		},
 	}
@@ -102,7 +192,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			t.Parallel()
 			got := findDirWithPatterns(tt.changes, tt.patterns)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("User value is mismatch (-got +want):\n%s", diff)
+				t.Errorf("Result is mismatch (-got +want):\n%s", diff)
 			}
 		})
 	}
