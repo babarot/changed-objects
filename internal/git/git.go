@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -23,7 +22,6 @@ type Config struct {
 
 type Change struct {
 	Path string
-	Dir  string
 	Type Type
 }
 
@@ -274,7 +272,6 @@ func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 		}
 		cs = append(cs, Change{
 			Path: path,
-			Dir:  filepath.Dir(path),
 			Type: ty,
 		})
 	}

@@ -14,8 +14,6 @@ type File struct {
 	ParentDir ParentDir `json:"parent_dir"`
 }
 
-type Files []File
-
 type ParentDir struct {
 	Path  string `json:"path"`
 	Exist bool   `json:"exist"`
@@ -24,34 +22,12 @@ type ParentDir struct {
 type Dir struct {
 	Path  string `json:"path"`
 	Exist bool   `json:"exist"`
-	Files Files  `json:"files"`
-}
-
-type Dirs []Dir
-
-func (fs *Files) filter(f func(File) bool) Files {
-	files := make(Files, 0)
-	for _, file := range *fs {
-		if f(file) {
-			files = append(files, file)
-		}
-	}
-	return files
-}
-
-func (ds *Dirs) filter(f func(Dir) bool) Dirs {
-	dirs := make(Dirs, 0)
-	for _, dir := range *ds {
-		if f(dir) {
-			dirs = append(dirs, dir)
-		}
-	}
-	return dirs
+	Files []File `json:"files"`
 }
 
 type Diff struct {
-	Files Files `json:"files"`
-	Dirs  Dirs  `json:"dirs"`
+	Files []File `json:"files"`
+	Dirs  []Dir  `json:"dirs"`
 }
 
 func getFile(change git.Change) File {
@@ -60,9 +36,9 @@ func getFile(change git.Change) File {
 		Path: change.Path,
 		Type: change.Type,
 		ParentDir: ParentDir{
-			Path: change.Dir,
+			Path: filepath.Dir(change.Path),
 			Exist: func() bool {
-				_, err := os.Stat(change.Dir)
+				_, err := os.Stat(filepath.Dir(change.Path))
 				return err == nil
 			}(),
 		},
