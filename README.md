@@ -1,5 +1,11 @@
 changed-objects
 ===============
+[![][test-badge]][test-link] [![][codecov-badge]][codecov-link]
+
+[test-badge]: https://github.com/b4b4r07/changed-objects/actions/workflows/test.yaml/badge.svg
+[test-link]: https://github.com/b4b4r07/changed-objects/actions/workflows/test.yaml
+[codecov-badge]: https://codecov.io/gh/b4b4r07/changed-objects/branch/main/graph/badge.svg?token=FB7CYPJIV6
+[codecov-link]: https://codecov.io/gh/b4b4r07/changed-objects
 
 Get changed objects within the commit histories by comparing between two points.
 
