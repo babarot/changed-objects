@@ -15,16 +15,12 @@ func Test_findDirWithPatterns(t *testing.T) {
 		want     map[string][]git.Change
 	}{
 		{
-			name: "terraform: regular case",
+			name: "terraform: no patterns case",
 			changes: []git.Change{
 				{Path: "terraform/service-a/prod/a.tf", Type: git.Addition},
 				{Path: "terraform/service-a/prod/b.tf", Type: git.Addition},
 				{Path: "terraform/service-a/dev/a.tf", Type: git.Addition},
-				{Path: "terraform/service-a/dev/b.tf", Type: git.Addition},
 				{Path: "terraform/service-b/prod/a.tf", Type: git.Addition},
-				{Path: "terraform/service-b/prod/b.tf", Type: git.Addition},
-				{Path: "terraform/service-b/dev/a.tf", Type: git.Addition},
-				{Path: "terraform/service-b/dev/b.tf", Type: git.Addition},
 			},
 			patterns: []string{},
 			want: map[string][]git.Change{
@@ -34,20 +30,14 @@ func Test_findDirWithPatterns(t *testing.T) {
 				},
 				"terraform/service-a/dev": {
 					{Path: "terraform/service-a/dev/a.tf", Type: git.Addition},
-					{Path: "terraform/service-a/dev/b.tf", Type: git.Addition},
 				},
 				"terraform/service-b/prod": {
 					{Path: "terraform/service-b/prod/a.tf", Type: git.Addition},
-					{Path: "terraform/service-b/prod/b.tf", Type: git.Addition},
-				},
-				"terraform/service-b/dev": {
-					{Path: "terraform/service-b/dev/a.tf", Type: git.Addition},
-					{Path: "terraform/service-b/dev/b.tf", Type: git.Addition},
 				},
 			},
 		},
 		{
-			name: "terraform: including child dir",
+			name: "terraform: including child dir with no patterns",
 			changes: []git.Change{
 				{Path: "terraform/service-a/prod/a.tf", Type: git.Addition},
 				{Path: "terraform/service-a/prod/child/a.tf", Type: git.Addition},
@@ -69,15 +59,12 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes: regular case",
+			name: "kubernetes: no patterns case",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/dev/CronJob/a.yaml", Type: git.Addition},
-				{Path: "kubernetes/service-b/base/a.yaml", Type: git.Addition},
-				{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition},
-				{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition},
 			},
 			patterns: []string{},
 			want: map[string][]git.Change{
@@ -85,19 +72,15 @@ func Test_findDirWithPatterns(t *testing.T) {
 				"kubernetes/service-a/prod/CronJob":    {{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition}},
 				"kubernetes/service-a/dev/Deployment":  {{Path: "kubernetes/service-a/dev/Deployment/a.yaml", Type: git.Addition}},
 				"kubernetes/service-a/dev/CronJob":     {{Path: "kubernetes/service-a/dev/CronJob/a.yaml", Type: git.Addition}},
-				"kubernetes/service-b/base":            {{Path: "kubernetes/service-b/base/a.yaml", Type: git.Addition}},
-				"kubernetes/service-b/overlays/dev":    {{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition}},
-				"kubernetes/service-b/overlays/prod":   {{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition}},
 			},
 		},
 		{
-			name: "kubernetes: regular case (max match)",
+			name: "mixed paths: no patterns",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
 			},
-			// max match: if no patterns are passed
 			patterns: []string{},
 			want: map[string][]git.Change{
 				"kubernetes/service-a/prod":            {{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition}},
@@ -106,7 +89,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes: regular case (min match)",
+			name: "kubernetes: pattern match",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
@@ -123,7 +106,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes: regular case (min match #2)",
+			name: "kubernetes: different pattern match",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
@@ -140,7 +123,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes: regular case (min match #3)",
+			name: "kubernetes: root pattern match",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/README.md", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
@@ -157,7 +140,7 @@ func Test_findDirWithPatterns(t *testing.T) {
 			},
 		},
 		{
-			name: "kubernetes: pattern match",
+			name: "kubernetes: complex pattern match",
 			changes: []git.Change{
 				{Path: "kubernetes/service-a/prod/Deployment/a.yaml", Type: git.Addition},
 				{Path: "kubernetes/service-a/prod/CronJob/a.yaml", Type: git.Addition},
@@ -182,6 +165,22 @@ func Test_findDirWithPatterns(t *testing.T) {
 				},
 				"kubernetes/service-b/overlays/dev":  {{Path: "kubernetes/service-b/overlays/dev/a.yaml", Type: git.Addition}},
 				"kubernetes/service-b/overlays/prod": {{Path: "kubernetes/service-b/overlays/prod/a.yaml", Type: git.Addition}},
+			},
+		},
+		{
+			name: "complex org structure: no patterns",
+			changes: []git.Change{
+				{Path: "terraform/organizations/10x.co.jp/folders/partners/google_privileged_access_manager_entitlement.tf", Type: git.Addition},
+				{Path: "terraform/organizations/10x.co.jp/google_organization_iam_custom_role.tf", Type: git.Modification},
+			},
+			patterns: []string{},
+			want: map[string][]git.Change{
+				"terraform/organizations/10x.co.jp/folders/partners": {
+					{Path: "terraform/organizations/10x.co.jp/folders/partners/google_privileged_access_manager_entitlement.tf", Type: git.Addition},
+				},
+				"terraform/organizations/10x.co.jp": {
+					{Path: "terraform/organizations/10x.co.jp/google_organization_iam_custom_role.tf", Type: git.Modification},
+				},
 			},
 		},
 	}
