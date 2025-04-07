@@ -54,14 +54,14 @@ func (c client) Run() (Diff, error) {
 
 	for _, arg := range c.args {
 		// filter by given dir names
-		changes = lo.Filter[git.Change](changes, func(change git.Change, _ int) bool {
+		changes = lo.Filter(changes, func(change git.Change, _ int) bool {
 			return strings.Index(filepath.Dir(change.Path), arg) == 0
 		})
 	}
 
 	for _, ignore := range c.opt.Ignores {
 		// filter out by given patterns
-		changes = lo.Filter[git.Change](changes, func(change git.Change, _ int) bool {
+		changes = lo.Filter(changes, func(change git.Change, _ int) bool {
 			match, err := doublestar.Match(ignore, filepath.Dir(change.Path))
 			if err != nil {
 				return false
@@ -74,7 +74,7 @@ func (c client) Run() (Diff, error) {
 		// filter by change type
 		filtered := []git.Change{}
 		for _, ty := range c.opt.Types {
-			filtered = append(filtered, lo.Filter[git.Change](changes, func(change git.Change, _ int) bool {
+			filtered = append(filtered, lo.Filter(changes, func(change git.Change, _ int) bool {
 				switch ty {
 				case "added":
 					return change.Type == git.Addition
@@ -90,7 +90,7 @@ func (c client) Run() (Diff, error) {
 	}
 
 	// filter by the existence of parent dir
-	changes = lo.Filter[git.Change](changes, func(change git.Change, _ int) bool {
+	changes = lo.Filter(changes, func(change git.Change, _ int) bool {
 		_, err := os.Stat(filepath.Dir(change.Path))
 		exist := err == nil
 		switch c.opt.DirExist {
@@ -164,20 +164,23 @@ func getSteps(path string) []string {
 func findDirWithPatterns(changes []git.Change, patterns []string) map[string][]git.Change {
 	found := make(map[string][]git.Change)
 
-	min := true
 	if len(patterns) == 0 {
-		// if no given patterns, find files located in parent dir.
-		min = false
-		patterns = lo.Uniq[string](lo.Map[git.Change](changes, func(change git.Change, _ int) string {
-			return filepath.Dir(change.Path)
-		}))
+		// If no patterns are specified, use the direct parent directory of each file
+		for _, change := range changes {
+			parentDir := filepath.Dir(change.Path)
+			found[parentDir] = append(found[parentDir], change)
+		}
+		return found
 	}
+
+	// If patterns are specified, use the minimum match
+	min := true
 
 	for _, change := range changes {
 		steps := getSteps(filepath.Dir(change.Path))
 		var dirs []string
 		for _, pattern := range patterns {
-			dirs = append(dirs, lo.FilterMap[string, string](steps, func(step string, _ int) (string, bool) {
+			dirs = append(dirs, lo.FilterMap(steps, func(step string, _ int) (string, bool) {
 				matched, _ := doublestar.Match(pattern, step)
 				return step, matched
 			})...)
