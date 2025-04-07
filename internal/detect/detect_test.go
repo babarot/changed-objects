@@ -3,7 +3,7 @@ package detect
 import (
 	"testing"
 
-	"github.com/b4b4r07/changed-objects/internal/git"
+	"github.com/babarot/changed-objects/internal/git"
 	"github.com/google/go-cmp/cmp"
 )
 
