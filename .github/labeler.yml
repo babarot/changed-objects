@@ -1,0 +1,6 @@
+changelog/skip:
+  - all:
+    - changed-files:
+      - all-globs-to-all-files:
+        - '!**/*.go'
+        - '!docs/**'

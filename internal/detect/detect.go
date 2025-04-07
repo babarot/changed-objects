@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/b4b4r07/changed-objects/internal/git"
+	"github.com/babarot/changed-objects/internal/git"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/k0kubun/pp/v3"
 	"github.com/samber/lo"

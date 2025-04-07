@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 
-	"github.com/b4b4r07/changed-objects/internal/detect"
-	clilog "github.com/b4b4r07/go-cli-log"
+	"github.com/babarot/changed-objects/internal/detect"
+	"github.com/hashicorp/logutils"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -36,8 +39,16 @@ func main() {
 }
 
 func run(args []string) error {
-	clilog.Env = "LOG"
-	clilog.SetOutput()
+	out, err := logOutput()
+	if err != nil {
+		return err
+	}
+
+	if out == nil {
+		out = io.Discard
+	}
+	log.SetOutput(out)
+
 	defer log.Printf("[INFO] finish main function")
 
 	log.Printf("[INFO] Version: %s (%s)", Version, Revision)
@@ -45,7 +56,7 @@ func run(args []string) error {
 
 	var opt Option
 	p := flags.NewParser(&opt, flags.HelpFlag|flags.PassDoubleDash)
-	args, err := p.ParseArgs(args)
+	args, err = p.ParseArgs(args)
 	if err != nil {
 		return err
 	}
@@ -85,4 +96,60 @@ func run(args []string) error {
 	}
 
 	return json.NewEncoder(os.Stdout).Encode(&diff)
+}
+
+var ValidLevels = []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERROR"}
+
+func logOutput() (io.Writer, error) {
+	out := io.Discard
+
+	logLevel := LogLevel()
+	if logLevel == "" {
+		return out, nil
+	}
+
+	out = os.Stderr
+	if logPath := os.Getenv("LOG_PATH"); logPath != "" {
+		var err error
+		out, err = os.OpenFile(logPath, syscall.O_CREAT|syscall.O_RDWR|syscall.O_APPEND, 0666)
+		if err != nil {
+			return out, err
+		}
+	}
+
+	out = &logutils.LevelFilter{
+		Levels:   ValidLevels,
+		MinLevel: logutils.LogLevel(logLevel),
+		Writer:   out,
+	}
+	return out, nil
+}
+
+// LogLevel returns the current log level string based the environment vars
+func LogLevel() string {
+	envLevel := os.Getenv("LOG")
+	if envLevel == "" {
+		return ""
+	}
+
+	logLevel := "TRACE"
+	if isValidLogLevel(envLevel) {
+		// allow following for better ux: info, Info or INFO
+		logLevel = strings.ToUpper(envLevel)
+	} else {
+		log.Printf("[WARN] Invalid log level: %q. Defaulting to level: TRACE. Valid levels are: %+v",
+			envLevel, ValidLevels)
+	}
+
+	return logLevel
+}
+
+func isValidLogLevel(level string) bool {
+	for _, l := range ValidLevels {
+		if strings.ToUpper(level) == string(l) {
+			return true
+		}
+	}
+
+	return false
 }
