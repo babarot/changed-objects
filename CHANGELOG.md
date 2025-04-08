@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.9](https://github.com/babarot/changed-objects/compare/v0.3.8...v0.3.9) - 2025-04-08
+### Bug fixes
+- Fix JSON output for empty results by @babarot in https://github.com/babarot/changed-objects/pull/22
+
 ## [v0.3.8](https://github.com/babarot/changed-objects/compare/v0.3.7...v0.3.8) - 2025-04-07
 ### Bug fixes
 - Fix directory grouping when no patterns are specified by @babarot in https://github.com/babarot/changed-objects/pull/20
