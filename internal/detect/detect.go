@@ -103,9 +103,19 @@ func (c client) Run() (Diff, error) {
 		}
 	})
 
+	files := c.getFiles(changes)
+	dirs := c.getDirs(changes)
+
+	if files == nil {
+		files = []File{}
+	}
+	if dirs == nil {
+		dirs = []Dir{}
+	}
+
 	return Diff{
-		Files: c.getFiles(changes),
-		Dirs:  c.getDirs(changes),
+		Files: files,
+		Dirs:  dirs,
 	}, nil
 }
 
