@@ -29,7 +29,7 @@ $ changed-objects
 
 ## Installation
 
-From [binaries](https://github.com/babarot/changed-objects/releases/tag/v0.3.9).
+From [binaries](https://github.com/babarot/changed-objects/releases/tag/v0.3.10).
 
 ## License
 
