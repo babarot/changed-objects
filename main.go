@@ -29,6 +29,7 @@ type Option struct {
 	Ignores       []string `long:"ignore" description:"Specify a pattern to skip when showing changed objects"`
 	GroupBy       []string `long:"group-by" description:"Specify a pattern to make into one group when showing changed objects"`
 	DirExist      string   `long:"dir-exist" description:"Filter objects by state of dir existing" choice:"true" choice:"false" choice:"all" default:"all"`
+	RootMarker    string   `long:"root-marker" description:"Specify a glob pattern of file that marks the root directory (e.g. *.tf)"`
 }
 
 func main() {
@@ -85,6 +86,7 @@ func run(args []string) error {
 		GroupBy:       opt.GroupBy,
 		Types:         opt.Types,
 		DirExist:      opt.DirExist,
+		RootMarker:    opt.RootMarker,
 	})
 	if err != nil {
 		return err
