@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.10](https://github.com/babarot/changed-objects/compare/v0.3.9...v0.3.10) - 2026-02-19
+### New Features
+- feat: add --root-marker option to resolve Terraform module roots by @babarot in https://github.com/babarot/changed-objects/pull/24
+
 ## [v0.3.9](https://github.com/babarot/changed-objects/compare/v0.3.8...v0.3.9) - 2025-04-08
 ### Bug fixes
 - Fix JSON output for empty results by @babarot in https://github.com/babarot/changed-objects/pull/22
