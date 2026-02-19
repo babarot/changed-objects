@@ -26,6 +26,7 @@ type Option struct {
 	Ignores       []string
 	GroupBy       []string
 	DirExist      string
+	RootMarker    string
 }
 
 func New(path string, args []string, opt Option) (client, error) {
@@ -131,23 +132,33 @@ func (c client) getFiles(changes []git.Change) []File {
 func (c client) getDirs(changes []git.Change) []Dir {
 	matrix := make(map[string]Dir)
 	for path, changes := range findDirWithPatterns(changes, c.opt.GroupBy) {
+		resolvedPath := path
+		if c.opt.RootMarker != "" {
+			root := findRootByMarker(path, c.opt.RootMarker)
+			if root == "" {
+				log.Printf("[DEBUG] getDirs: skipping %q: no root marker %q found in ancestors", path, c.opt.RootMarker)
+				continue
+			}
+			log.Printf("[DEBUG] getDirs: resolved %q -> %q by root-marker", path, root)
+			resolvedPath = root
+		}
 		for _, change := range changes {
-			dir, ok := matrix[path]
+			dir, ok := matrix[resolvedPath]
 			if ok {
-				log.Printf("[TRACE] getDirs: updated %q", path)
+				log.Printf("[TRACE] getDirs: updated %q", resolvedPath)
 				dir.Files = append(dir.Files, getFile(change))
 			} else {
-				log.Printf("[TRACE] getDirs: created %q", path)
+				log.Printf("[TRACE] getDirs: created %q", resolvedPath)
 				dir = Dir{
-					Path: path,
+					Path: resolvedPath,
 					Exist: func() bool {
-						_, err := os.Stat(path)
+						_, err := os.Stat(resolvedPath)
 						return err == nil
 					}(),
 					Files: []File{getFile(change)},
 				}
 			}
-			matrix[path] = dir
+			matrix[resolvedPath] = dir
 		}
 	}
 
@@ -169,6 +180,29 @@ func getSteps(path string) []string {
 		}
 	}
 	return steps
+}
+
+func findRootByMarker(dir string, marker string) string {
+	steps := getSteps(dir)
+	for _, step := range steps {
+		entries, err := os.ReadDir(step)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			matched, err := doublestar.Match(marker, entry.Name())
+			if err != nil {
+				continue
+			}
+			if matched {
+				return step
+			}
+		}
+	}
+	return ""
 }
 
 func findDirWithPatterns(changes []git.Change, patterns []string) map[string][]git.Change {

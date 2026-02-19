@@ -1,6 +1,8 @@
 package detect
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/babarot/changed-objects/internal/git"
@@ -192,6 +194,123 @@ func Test_findDirWithPatterns(t *testing.T) {
 			got := findDirWithPatterns(tt.changes, tt.patterns)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("Result is mismatch (-got +want):\n%s", diff)
+			}
+		})
+	}
+}
+
+func Test_findRootByMarker(t *testing.T) {
+	// Build directory structure:
+	// tmpDir/
+	//   terraform/services/service-a/production/
+	//     main.tf          <- marker
+	//     config.json
+	//     scripts/
+	//       deploy.sh
+	//   terraform/services/service-b/
+	//     main.tf          <- marker (in parent)
+	//     development/
+	//       config.json
+	//   docs/
+	//     readme.md        <- no .tf files
+	//   data/
+	//     schema.json      <- no .tf files
+	//     nested/
+	//       file.json      <- no .tf files
+
+	tmpDir := t.TempDir()
+
+	dirs := []string{
+		"terraform/services/service-a/production/scripts",
+		"terraform/services/service-b/development",
+		"docs",
+		"data/nested",
+	}
+	for _, d := range dirs {
+		if err := os.MkdirAll(filepath.Join(tmpDir, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	files := map[string]string{
+		"terraform/services/service-a/production/main.tf":       "",
+		"terraform/services/service-a/production/config.json":   "",
+		"terraform/services/service-a/production/scripts/deploy.sh": "",
+		"terraform/services/service-b/main.tf":                  "",
+		"terraform/services/service-b/development/config.json":  "",
+		"docs/readme.md":                                         "",
+		"data/schema.json":                                       "",
+		"data/nested/file.json":                                  "",
+	}
+	for name, content := range files {
+		path := filepath.Join(tmpDir, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cases := []struct {
+		name   string
+		dir    string
+		marker string
+		want   string // empty string means no root found (skip)
+	}{
+		{
+			name:   "direct parent has .tf file",
+			dir:    "terraform/services/service-a/production",
+			marker: "*.tf",
+			want:   "terraform/services/service-a/production",
+		},
+		{
+			name:   "child dir change, parent has .tf file",
+			dir:    "terraform/services/service-a/production/scripts",
+			marker: "*.tf",
+			want:   "terraform/services/service-a/production",
+		},
+		{
+			name:   "multiple levels up, grandparent has .tf file",
+			dir:    "terraform/services/service-b/development",
+			marker: "*.tf",
+			want:   "terraform/services/service-b",
+		},
+		{
+			name:   "no .tf files in ancestors",
+			dir:    "docs",
+			marker: "*.tf",
+			want:   "",
+		},
+		{
+			name:   "no .tf files, nested",
+			dir:    "data/nested",
+			marker: "*.tf",
+			want:   "",
+		},
+		{
+			name:   "different marker pattern: *.json",
+			dir:    "terraform/services/service-a/production/scripts",
+			marker: "*.json",
+			want:   "terraform/services/service-a/production",
+		},
+		{
+			name:   "different marker: *.md",
+			dir:    "docs",
+			marker: "*.md",
+			want:   "docs",
+		},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(tmpDir, tt.dir)
+			got := findRootByMarker(dir, tt.marker)
+			var want string
+			if tt.want != "" {
+				want = filepath.Join(tmpDir, tt.want)
+			}
+			if got != want {
+				t.Errorf("findRootByMarker(%q, %q) = %q, want %q", dir, tt.marker, got, want)
 			}
 		})
 	}
