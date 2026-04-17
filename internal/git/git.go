@@ -25,14 +25,29 @@ type Change struct {
 	Type Type
 }
 
+// repoOperator abstracts repository operations for testability.
+type repoOperator interface {
+	getCurrentBranch() (string, error)
+	currentCommit() (*object.Commit, error)
+	previousCommit() (*object.Commit, error)
+	remoteCommit(name string) (*object.Commit, error)
+	mergeBaseCommit(baseRev, commitRev string) (*object.Commit, error)
+	getDefaultBranch() (string, error)
+	headBranchName() (string, error)
+	getChanges(from, to *object.Commit) ([]Change, error)
+}
+
 func Open(cfg Config) ([]Change, error) {
 	repo, err := git.PlainOpen(cfg.Path)
 	if err != nil {
 		return []Change{}, fmt.Errorf("cannot open repository: %w", err)
 	}
 	cfg.repo = repo
+	return resolveChanges(cfg.DefaultBranch, cfg.MergeBase, cfg)
+}
 
-	currentBranch, err := cfg.getCurrentBranch()
+func resolveChanges(defaultBranch, mergeBase string, r repoOperator) ([]Change, error) {
+	currentBranch, err := r.getCurrentBranch()
 	if err != nil {
 		return []Change{}, err
 	}
@@ -41,16 +56,16 @@ func Open(cfg Config) ([]Change, error) {
 	var base *object.Commit
 
 	switch currentBranch {
-	case cfg.DefaultBranch:
+	case defaultBranch:
 		log.Printf("[DEBUG] Getting previous HEAD commit")
-		prev, err := cfg.previousCommit()
+		prev, err := r.previousCommit()
 		if err != nil {
 			return []Change{}, err
 		}
 		base = prev
 	default:
 		log.Printf("[DEBUG] Getting remote commit")
-		remote, err := cfg.remoteCommit("origin/" + cfg.DefaultBranch)
+		remote, err := r.remoteCommit("origin/" + defaultBranch)
 		if err != nil {
 			return []Change{}, err
 		}
@@ -58,26 +73,25 @@ func Open(cfg Config) ([]Change, error) {
 	}
 
 	if base == nil {
-		defaultBranch, err := cfg.getDefaultBranch()
+		db, err := r.getDefaultBranch()
 		if err != nil {
-			return []Change{}, fmt.Errorf("%w: default branch %s is not wrong", err, cfg.DefaultBranch)
+			return []Change{}, fmt.Errorf("%w: default branch %s is not wrong", err, defaultBranch)
 		}
-		log.Printf("[DEBUG] base is nil. So get remote commit from %q", defaultBranch)
-		remote, err := cfg.remoteCommit(defaultBranch)
+		log.Printf("[DEBUG] base is nil. So get remote commit from %q", db)
+		remote, err := r.remoteCommit(db)
 		if err != nil {
 			return []Change{}, err
 		}
 		base = remote
 	}
 
-	if len(cfg.MergeBase) > 0 {
+	if len(mergeBase) > 0 {
 		log.Printf("[DEBUG] Comparing with merge-base")
-		h, err := cfg.repo.Head()
+		currentBranch, err := r.headBranchName()
 		if err != nil {
 			return []Change{}, err
 		}
-		currentBranch := h.Name().Short()
-		mb, err := cfg.mergeBaseCommit(cfg.MergeBase, currentBranch)
+		mb, err := r.mergeBaseCommit(mergeBase, currentBranch)
 		if err != nil {
 			return []Change{}, err
 		}
@@ -87,12 +101,12 @@ func Open(cfg Config) ([]Change, error) {
 	}
 
 	log.Printf("[DEBUG] Getting current commit")
-	current, err := cfg.currentCommit()
+	current, err := r.currentCommit()
 	if err != nil {
 		return []Change{}, err
 	}
 
-	return cfg.getChanges(base, current)
+	return r.getChanges(base, current)
 }
 
 // https://github.com/src-d/go-git/issues/1030
@@ -277,6 +291,14 @@ func (c Config) getChanges(from, to *object.Commit) ([]Change, error) {
 	}
 
 	return cs, nil
+}
+
+func (c Config) headBranchName() (string, error) {
+	h, err := c.repo.Head()
+	if err != nil {
+		return "", err
+	}
+	return h.Name().Short(), nil
 }
 
 func (c Config) getDefaultBranch() (string, error) {
