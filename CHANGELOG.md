@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.12](https://github.com/babarot/changed-objects/compare/v0.3.11...v0.3.12) - 2026-10-05
+### Others
+- Increase test coverage and extract repoOperator interface by @babarot in https://github.com/babarot/changed-objects/pull/28
+
 ## [v0.3.11](https://github.com/babarot/changed-objects/compare/v0.3.10...v0.3.11) - 2026-04-17
 
 ## [v0.3.10](https://github.com/babarot/changed-objects/compare/v0.3.9...v0.3.10) - 2026-02-19
