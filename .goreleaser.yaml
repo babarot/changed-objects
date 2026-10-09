@@ -63,4 +63,5 @@ nix:
       token: "{{ .Env.NUR_GITHUB_TOKEN }}"
     homepage: https://github.com/babarot/changed-objects
     description: Get changed objects in Git commit
+    license: mit
     main_program: changed-objects
